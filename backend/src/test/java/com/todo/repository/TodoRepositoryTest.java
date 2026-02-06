@@ -10,7 +10,11 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.todo.config.QueryDslConfig;
+import org.springframework.context.annotation.Import;
+
 @DataJpaTest
+@Import(QueryDslConfig.class)
 class TodoRepositoryTest {
 
     @Autowired
@@ -52,7 +56,7 @@ class TodoRepositoryTest {
         todoRepository.save(todo2);
 
         // when
-        todoRepository.deleteAllCompleted();
+        todoRepository.deleteCompleted();
 
         // then
         List<Todo> remaining = todoRepository.findAll();
@@ -79,7 +83,7 @@ class TodoRepositoryTest {
         todoRepository.save(todo2);
 
         // when
-        List<Todo> activeTodos = todoRepository.findByCompletedOrderByDisplayOrderAsc(false);
+        List<Todo> activeTodos = todoRepository.findCompletedSorted(false);
 
         // then
         assertThat(activeTodos).hasSize(2);

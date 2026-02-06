@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
  */
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)  // 기본적으로 읽기 전용 (성능 최적화)
+@Transactional(readOnly = true) // 기본적으로 읽기 전용 (성능 최적화)
 public class TodoService {
 
     private final TodoRepository todoRepository;
@@ -29,9 +29,9 @@ public class TodoService {
      * 전체 Todo 조회
      */
     public List<TodoResponse> findAll() {
-        return todoRepository.findAllByOrderByDisplayOrderAscCreatedAtDesc()
+        return todoRepository.findAllSorted()
                 .stream()
-                .map(TodoResponse::from)  // Entity → DTO 변환
+                .map(TodoResponse::from) // Entity → DTO 변환
                 .collect(Collectors.toList());
     }
 
@@ -40,18 +40,18 @@ public class TodoService {
      */
     public List<TodoResponse> findByFilter(String filter) {
         List<Todo> todos;
-        
+
         switch (filter) {
             case "active":
-                todos = todoRepository.findByCompletedOrderByDisplayOrderAsc(false);
+                todos = todoRepository.findCompletedSorted(false);
                 break;
             case "completed":
-                todos = todoRepository.findByCompletedOrderByDisplayOrderAsc(true);
+                todos = todoRepository.findCompletedSorted(true);
                 break;
             default:
-                todos = todoRepository.findAllByOrderByDisplayOrderAscCreatedAtDesc();
+                todos = todoRepository.findAllSorted();
         }
-        
+
         return todos.stream()
                 .map(TodoResponse::from)
                 .collect(Collectors.toList());
@@ -68,19 +68,20 @@ public class TodoService {
 
     /**
      * Todo 생성
+     * 
      * @Transactional: 쓰기 작업이므로 readOnly = false
      */
     @Transactional
     public TodoResponse create(TodoRequest request) {
         // 새 Todo의 순서는 현재 개수 (맨 뒤에 추가)
         int order = (int) todoRepository.count();
-        
+
         Todo todo = Todo.builder()
                 .text(request.getText())
                 .completed(request.getCompleted())
                 .displayOrder(order)
                 .build();
-        
+
         Todo saved = todoRepository.save(todo);
         return TodoResponse.from(saved);
     }
@@ -92,7 +93,7 @@ public class TodoService {
     public TodoResponse update(Long id, TodoRequest request) {
         Todo todo = todoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Todo not found: " + id));
-        
+
         // 변경할 필드만 업데이트
         if (request.getText() != null) {
             todo.updateText(request.getText());
@@ -103,7 +104,7 @@ public class TodoService {
         if (request.getDisplayOrder() != null) {
             todo.updateOrder(request.getDisplayOrder());
         }
-        
+
         // JPA 변경 감지 (Dirty Checking) - save() 호출 안 해도 자동 UPDATE
         return TodoResponse.from(todo);
     }
@@ -115,7 +116,7 @@ public class TodoService {
     public TodoResponse toggleComplete(Long id) {
         Todo todo = todoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Todo not found: " + id));
-        
+
         todo.toggleCompleted();
         return TodoResponse.from(todo);
     }
@@ -136,7 +137,7 @@ public class TodoService {
      */
     @Transactional
     public void deleteCompleted() {
-        todoRepository.deleteAllCompleted();
+        todoRepository.deleteCompleted();
     }
 
     /**
@@ -146,12 +147,13 @@ public class TodoService {
         long total = todoRepository.count();
         long completed = todoRepository.countByCompleted(true);
         long active = total - completed;
-        
+
         return new TodoStats(total, active, completed);
     }
 
     /**
      * 통계 데이터 클래스
      */
-    public record TodoStats(long total, long active, long completed) {}
+    public record TodoStats(long total, long active, long completed) {
+    }
 }

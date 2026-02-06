@@ -43,7 +43,7 @@ class TodoServiceTest {
         TodoResponse response = todoService.create(request);
 
         // then
-        assertThat(response.getId()).isEqualTo(1L);
+        assertThat(response.getId()).isEqualTo(999L);
         assertThat(response.getText()).isEqualTo("New Todo");
         verify(todoRepository).save(any(Todo.class));
     }

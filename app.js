@@ -11,6 +11,8 @@ const itemsLeft = document.getElementById('itemsLeft');
 const clearCompleted = document.getElementById('clearCompleted');
 const filterBtns = document.querySelectorAll('.filter-btn');
 const dateDisplay = document.getElementById('dateDisplay');
+const themeToggle = document.getElementById('themeToggle');
+const loadingOverlay = document.getElementById('loadingOverlay');
 
 // Count elements
 const allCount = document.getElementById('allCount');
@@ -24,9 +26,40 @@ let draggedItem = null;
 
 // ===== Initialize =====
 async function init() {
+    initTheme();
     displayDate();
     await fetchTodos();
     setupEventListeners();
+}
+
+// ===== Theme Handling =====
+function initTheme() {
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateThemeIcon(savedTheme);
+}
+
+function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateThemeIcon(newTheme);
+}
+
+function updateThemeIcon(theme) {
+    const icon = themeToggle.querySelector('.theme-icon');
+    icon.textContent = theme === 'light' ? '☀️' : '🌙';
+}
+
+// ===== Loading State =====
+function setLoading(isLoading) {
+    if (isLoading) {
+        loadingOverlay.classList.add('show');
+    } else {
+        loadingOverlay.classList.remove('show');
+    }
 }
 
 // ===== Display Current Date =====
@@ -47,6 +80,7 @@ function displayDate() {
  * 서버에서 Todo 목록 가져오기
  */
 async function fetchTodos() {
+    setLoading(true);
     try {
         const response = await fetch(`${API_BASE_URL}?filter=${currentFilter}`);
         if (!response.ok) throw new Error('Failed to fetch todos');
@@ -55,6 +89,8 @@ async function fetchTodos() {
     } catch (error) {
         console.error('Error fetching todos:', error);
         showError('서버와 연결할 수 없습니다. 백엔드가 실행 중인지 확인하세요.');
+    } finally {
+        setLoading(false);
     }
 }
 
@@ -62,6 +98,7 @@ async function fetchTodos() {
  * 새 Todo 서버에 저장
  */
 async function createTodo(text) {
+    setLoading(true);
     try {
         const response = await fetch(API_BASE_URL, {
             method: 'POST',
@@ -82,6 +119,8 @@ async function createTodo(text) {
         console.error('Error creating todo:', error);
         showError('할 일 추가에 실패했습니다.');
         throw error;
+    } finally {
+        setLoading(false);
     }
 }
 
@@ -185,6 +224,9 @@ function setupEventListeners() {
 
     // Clear completed
     clearCompleted.addEventListener('click', clearCompletedOnServer);
+
+    // Theme toggle
+    themeToggle.addEventListener('click', toggleTheme);
 }
 
 // ===== Add Todo =====
@@ -206,27 +248,20 @@ async function addTodo() {
 
 // ===== Show Error Message =====
 function showError(message) {
-    // 간단한 알림 표시 (실제 사용 시 더 좋은 UI로 대체)
     const existing = document.querySelector('.error-toast');
     if (existing) existing.remove();
 
     const toast = document.createElement('div');
     toast.className = 'error-toast';
-    toast.textContent = message;
-    toast.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: #ef4444;
-        color: white;
-        padding: 12px 20px;
-        border-radius: 8px;
-        z-index: 1000;
-        animation: slideIn 0.3s ease;
-    `;
+    toast.innerHTML = `<span style="font-size: 18px">⚠️</span> <span>${message}</span>`;
+
     document.body.appendChild(toast);
 
-    setTimeout(() => toast.remove(), 3000);
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(-20px)';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
 }
 
 // ===== Shake Input Animation =====
@@ -388,7 +423,7 @@ function handleDragOver(e) {
     e.dataTransfer.dropEffect = 'move';
 }
 
-function handleDrop(e) {
+async function handleDrop(e) {
     e.preventDefault();
 
     if (this === draggedItem) return;
@@ -399,11 +434,37 @@ function handleDrop(e) {
     const draggedIndex = todos.findIndex(t => t.id === draggedId);
     const targetIndex = todos.findIndex(t => t.id === targetId);
 
+    // Optimistic UI Update
     const [removed] = todos.splice(draggedIndex, 1);
     todos.splice(targetIndex, 0, removed);
-
     renderTodos();
-    // TODO: 서버에 순서 변경 반영 (추후 구현)
+
+    // Sync with Server
+    // 순서가 변경된 모든 아이템의 displayOrder 업데이트
+    // 실제로는 효율성을 위해 변경된 범위만 업데이트하거나, 
+    // LinkedList 처럼 앞뒤/순서값 등을 조정하는 방식이 좋음.
+    // 여기서는 간단히 전체 리스트 순서를 재할당하여 전송 (데이터 양이 적으므로)
+
+    try {
+        const updatePromises = todos.map((todo, index) => {
+            // 순서가 바뀐 항목만 요청
+            if (todo.displayOrder !== index) {
+                todo.displayOrder = index;
+                return fetch(`${API_BASE_URL}/${todo.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ displayOrder: index })
+                });
+            }
+            return Promise.resolve();
+        });
+
+        await Promise.all(updatePromises);
+    } catch (error) {
+        console.error('Error syncing order:', error);
+        showError('순서 저장에 실패했습니다.');
+        // 에러 시 원래대로 되돌리는 로직이 필요할 수 있음
+    }
 }
 
 // ===== Update Counts =====

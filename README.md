@@ -1,6 +1,6 @@
 # 📝 Todo App
 
-> Spring Boot + Vanilla JS로 만든 풀스택 TODO 애플리케이션
+> Spring Boot + Next.js로 만든 풀스택 TODO 애플리케이션
 
 ## 🛠️ 기술 스택
 

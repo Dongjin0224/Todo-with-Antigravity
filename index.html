@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,7 +11,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner"></div>
+    </div>
+
     <div class="app-container">
         <!-- 배경 장식 요소 -->
         <div class="bg-decoration">
@@ -22,19 +29,19 @@
         <!-- 메인 카드 -->
         <main class="todo-card">
             <header class="card-header">
-                <h1>📝 할 일 목록</h1>
+                <div class="header-top">
+                    <h1>📝 할 일 목록</h1>
+                    <button id="themeToggle" class="theme-btn" aria-label="테마 변경">
+                        <span class="theme-icon">🌙</span>
+                    </button>
+                </div>
                 <p class="subtitle" id="dateDisplay"></p>
             </header>
 
             <!-- 입력 섹션 -->
             <div class="input-section">
                 <div class="input-wrapper">
-                    <input 
-                        type="text" 
-                        id="todoInput" 
-                        placeholder="새로운 할 일을 입력하세요..."
-                        autocomplete="off"
-                    >
+                    <input type="text" id="todoInput" placeholder="새로운 할 일을 입력하세요..." autocomplete="off">
                     <button id="addBtn" class="add-btn">
                         <span class="btn-icon">+</span>
                         <span class="btn-text">추가</span>
@@ -82,4 +89,5 @@
 
     <script src="app.js"></script>
 </body>
+
 </html>

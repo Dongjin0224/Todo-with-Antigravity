@@ -3,6 +3,7 @@ package com.todo.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.NoArgsConstructor;
 
 /**
@@ -14,6 +15,7 @@ import lombok.NoArgsConstructor;
  * 3. 요청 데이터 검증 (@Valid)
  */
 @Getter
+@Setter
 @NoArgsConstructor
 public class TodoRequest {
 

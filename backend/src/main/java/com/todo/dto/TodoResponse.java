@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
  */
 @Getter
 @Builder
+@lombok.AllArgsConstructor
 public class TodoResponse {
 
     private Long id;

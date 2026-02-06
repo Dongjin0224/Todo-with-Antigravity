@@ -24,6 +24,7 @@ public class Todo {
 
     /**
      * 기본 키 (Primary Key)
+     * 
      * @GeneratedValue: 자동 증가 (PostgreSQL SERIAL)
      */
     @Id
@@ -32,6 +33,7 @@ public class Todo {
 
     /**
      * 할 일 내용
+     * 
      * @Column: 컬럼 속성 지정 (not null, 최대 500자)
      */
     @Column(nullable = false, length = 500)

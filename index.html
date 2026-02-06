@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="세련된 TODO 애플리케이션으로 할 일을 관리하세요">
+    <title>✨ TODO App - 할 일 관리</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- 배경 장식 요소 -->
+        <div class="bg-decoration">
+            <div class="bg-circle bg-circle-1"></div>
+            <div class="bg-circle bg-circle-2"></div>
+            <div class="bg-circle bg-circle-3"></div>
+        </div>
+
+        <!-- 메인 카드 -->
+        <main class="todo-card">
+            <header class="card-header">
+                <h1>📝 할 일 목록</h1>
+                <p class="subtitle" id="dateDisplay"></p>
+            </header>
+
+            <!-- 입력 섹션 -->
+            <div class="input-section">
+                <div class="input-wrapper">
+                    <input 
+                        type="text" 
+                        id="todoInput" 
+                        placeholder="새로운 할 일을 입력하세요..."
+                        autocomplete="off"
+                    >
+                    <button id="addBtn" class="add-btn">
+                        <span class="btn-icon">+</span>
+                        <span class="btn-text">추가</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 필터 탭 -->
+            <div class="filter-tabs">
+                <button class="filter-btn active" data-filter="all">
+                    전체 <span class="count" id="allCount">0</span>
+                </button>
+                <button class="filter-btn" data-filter="active">
+                    진행중 <span class="count" id="activeCount">0</span>
+                </button>
+                <button class="filter-btn" data-filter="completed">
+                    완료 <span class="count" id="completedCount">0</span>
+                </button>
+            </div>
+
+            <!-- TODO 리스트 -->
+            <ul class="todo-list" id="todoList">
+                <!-- 동적으로 생성됨 -->
+            </ul>
+
+            <!-- 빈 상태 -->
+            <div class="empty-state" id="emptyState">
+                <div class="empty-icon">🎯</div>
+                <p>할 일이 없습니다</p>
+                <span>위에서 새로운 할 일을 추가해보세요!</span>
+            </div>
+
+            <!-- 푸터 액션 -->
+            <footer class="card-footer" id="cardFooter">
+                <span class="items-left"><span id="itemsLeft">0</span>개 남음</span>
+                <button class="clear-btn" id="clearCompleted">완료된 항목 삭제</button>
+            </footer>
+        </main>
+
+        <!-- 앱 정보 -->
+        <footer class="app-footer">
+            <p>💡 더블클릭으로 수정 | 드래그로 순서 변경</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

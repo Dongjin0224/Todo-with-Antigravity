@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: todo-backend
+
+  # PostgreSQL 설정
+  datasource:
+    url: jdbc:postgresql://localhost:5432/todo_db
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+
+  # JPA 설정
+  jpa:
+    hibernate:
+      ddl-auto: update  # 개발 시 자동 스키마 생성/업데이트
+    show-sql: true      # SQL 쿼리 로그 출력
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+server:
+  port: 8080
+
+# CORS 설정 (프론트엔드 연동용)
+cors:
+  allowed-origins: "*"

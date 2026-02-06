@@ -1,0 +1,531 @@
+/* ===== CSS Variables & Reset ===== */
+:root {
+    --primary: #6366f1;
+    --primary-light: #818cf8;
+    --primary-dark: #4f46e5;
+    --secondary: #ec4899;
+    --accent: #06b6d4;
+    
+    --bg-dark: #0f0f23;
+    --bg-card: rgba(30, 30, 60, 0.85);
+    --bg-input: rgba(255, 255, 255, 0.08);
+    
+    --text-primary: #ffffff;
+    --text-secondary: #a1a1aa;
+    --text-muted: #71717a;
+    
+    --border-color: rgba(255, 255, 255, 0.1);
+    --shadow-color: rgba(99, 102, 241, 0.3);
+    
+    --success: #10b981;
+    --danger: #ef4444;
+    
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 20px;
+    --radius-xl: 28px;
+    
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg-dark);
+    min-height: 100vh;
+    color: var(--text-primary);
+    line-height: 1.6;
+}
+
+/* ===== App Container ===== */
+.app-container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* ===== Background Decorations ===== */
+.bg-decoration {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.bg-circle {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.5;
+    animation: float 8s ease-in-out infinite;
+}
+
+.bg-circle-1 {
+    width: 400px;
+    height: 400px;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    top: -100px;
+    right: -100px;
+    animation-delay: 0s;
+}
+
+.bg-circle-2 {
+    width: 300px;
+    height: 300px;
+    background: linear-gradient(135deg, var(--accent), var(--primary));
+    bottom: -50px;
+    left: -50px;
+    animation-delay: -2s;
+}
+
+.bg-circle-3 {
+    width: 250px;
+    height: 250px;
+    background: linear-gradient(135deg, var(--secondary), var(--accent));
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    animation-delay: -4s;
+    opacity: 0.3;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-30px) scale(1.05); }
+}
+
+/* ===== Main Card ===== */
+.todo-card {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 540px;
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    box-shadow: 
+        0 25px 50px -12px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    overflow: hidden;
+}
+
+/* ===== Card Header ===== */
+.card-header {
+    padding: 32px 32px 24px;
+    background: linear-gradient(135deg, 
+        rgba(99, 102, 241, 0.2), 
+        rgba(236, 72, 153, 0.1)
+    );
+    border-bottom: 1px solid var(--border-color);
+}
+
+.card-header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin-bottom: 4px;
+}
+
+.subtitle {
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 400;
+}
+
+/* ===== Input Section ===== */
+.input-section {
+    padding: 24px 32px;
+}
+
+.input-wrapper {
+    display: flex;
+    gap: 12px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 6px;
+    transition: var(--transition);
+}
+
+.input-wrapper:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--shadow-color);
+}
+
+#todoInput {
+    flex: 1;
+    background: transparent;
+    border: none;
+    padding: 12px 16px;
+    font-size: 15px;
+    color: var(--text-primary);
+    outline: none;
+}
+
+#todoInput::placeholder {
+    color: var(--text-muted);
+}
+
+.add-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: var(--radius-md);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.add-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px var(--shadow-color);
+}
+
+.add-btn:active {
+    transform: translateY(0);
+}
+
+.btn-icon {
+    font-size: 18px;
+    font-weight: 300;
+}
+
+/* ===== Filter Tabs ===== */
+.filter-tabs {
+    display: flex;
+    padding: 0 32px;
+    gap: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.filter-btn {
+    flex: 1;
+    background: transparent;
+    border: none;
+    padding: 14px 16px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+    position: relative;
+}
+
+.filter-btn::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--primary), var(--secondary));
+    transition: var(--transition);
+    transform: translateX(-50%);
+    border-radius: 2px;
+}
+
+.filter-btn:hover {
+    color: var(--text-primary);
+}
+
+.filter-btn.active {
+    color: var(--text-primary);
+}
+
+.filter-btn.active::after {
+    width: 100%;
+}
+
+.filter-btn .count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    background: var(--bg-input);
+    border-radius: 10px;
+    font-size: 11px;
+    margin-left: 6px;
+}
+
+/* ===== Todo List ===== */
+.todo-list {
+    list-style: none;
+    max-height: 380px;
+    overflow-y: auto;
+    padding: 8px 0;
+}
+
+.todo-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.todo-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.todo-list::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+.todo-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--border-color);
+    transition: var(--transition);
+    cursor: grab;
+    animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.todo-item:hover {
+    background: var(--bg-input);
+}
+
+.todo-item.dragging {
+    opacity: 0.5;
+    background: var(--bg-input);
+}
+
+.todo-item.completed .todo-text {
+    text-decoration: line-through;
+    color: var(--text-muted);
+}
+
+/* Custom Checkbox */
+.checkbox-wrapper {
+    position: relative;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+}
+
+.checkbox-wrapper input {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    z-index: 1;
+}
+
+.checkmark {
+    position: absolute;
+    inset: 0;
+    border: 2px solid var(--border-color);
+    border-radius: 50%;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.checkbox-wrapper input:checked + .checkmark {
+    background: linear-gradient(135deg, var(--success), #059669);
+    border-color: transparent;
+}
+
+.checkmark::after {
+    content: '✓';
+    font-size: 12px;
+    color: white;
+    opacity: 0;
+    transform: scale(0);
+    transition: var(--transition);
+}
+
+.checkbox-wrapper input:checked + .checkmark::after {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.checkbox-wrapper:hover .checkmark {
+    border-color: var(--primary);
+}
+
+/* Todo Text */
+.todo-text {
+    flex: 1;
+    font-size: 15px;
+    color: var(--text-primary);
+    transition: var(--transition);
+    word-break: break-word;
+}
+
+.todo-text.editing {
+    background: var(--bg-input);
+    border: 1px solid var(--primary);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    outline: none;
+}
+
+/* Delete Button */
+.delete-btn {
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-size: 18px;
+    cursor: pointer;
+    opacity: 0;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.todo-item:hover .delete-btn {
+    opacity: 1;
+}
+
+.delete-btn:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--danger);
+}
+
+/* ===== Empty State ===== */
+.empty-state {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 32px;
+    text-align: center;
+}
+
+.empty-state.show {
+    display: flex;
+}
+
+.empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    animation: bounce 2s ease infinite;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+.empty-state p {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.empty-state span {
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+/* ===== Card Footer ===== */
+.card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 32px;
+    background: rgba(0, 0, 0, 0.2);
+    border-top: 1px solid var(--border-color);
+}
+
+.card-footer.hidden {
+    display: none;
+}
+
+.items-left {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.clear-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 13px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.clear-btn:hover {
+    color: var(--danger);
+}
+
+/* ===== App Footer ===== */
+.app-footer {
+    margin-top: 24px;
+    text-align: center;
+    z-index: 1;
+}
+
+.app-footer p {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 480px) {
+    .app-container {
+        padding: 20px 16px;
+    }
+    
+    .card-header,
+    .input-section,
+    .filter-tabs,
+    .todo-item,
+    .card-footer {
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+    
+    .card-header h1 {
+        font-size: 24px;
+    }
+    
+    .btn-text {
+        display: none;
+    }
+    
+    .add-btn {
+        padding: 12px 14px;
+    }
+    
+    .filter-btn {
+        font-size: 12px;
+        padding: 12px 8px;
+    }
+}

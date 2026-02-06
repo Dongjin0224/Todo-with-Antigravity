@@ -11,27 +11,22 @@
 - PostgreSQL
 
 ### Frontend
-- HTML5
-- CSS3
-- Vanilla JavaScript (fetch API)
+- **Framework**: Next.js 14 (App Router)
+- **Language**: TypeScript
+- **Styling**: TailwindCSS v4
+- **State Management**: React Hooks
+- **Drag & Drop**: dnd-kit
 
 ## 📁 프로젝트 구조
 
 ```
 Todo/
 ├── backend/                 # Spring Boot REST API
-│   └── src/main/java/
-│       └── com/todo/
-│           ├── controller/  # REST 컨트롤러
-│           ├── service/     # 비즈니스 로직
-│           ├── repository/  # JPA 리포지토리
-│           ├── entity/      # 엔티티
-│           ├── dto/         # 요청/응답 DTO
-│           └── exception/   # 예외 처리
-│
-├── index.html              # 메인 페이지
-├── style.css               # 스타일시트
-└── app.js                  # 프론트엔드 로직
+├── frontend-next/           # Next.js Frontend (New)
+│   ├── app/                 # App Router
+│   ├── components/          # React Components
+│   └── lib/                 # Utilities & API
+└── frontend-vanilla/        # Legacy Vanilla JS (Archived)
 ```
 
 ## 🚀 실행 방법
@@ -50,11 +45,13 @@ cd backend
 ./gradlew bootRun
 ```
 
-### 3. Frontend 실행
+### 3. Frontend 실행 (Next.js)
 
 ```bash
-# 정적 파일 서버로 실행 (예: Live Server)
-# 또는 브라우저에서 index.html 직접 열기
+cd frontend-next
+npm install
+npm run dev
+# 접속: http://localhost:3000
 ```
 
 ## 📌 API Endpoints

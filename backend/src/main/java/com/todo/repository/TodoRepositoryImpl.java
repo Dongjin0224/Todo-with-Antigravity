@@ -1,7 +1,7 @@
 package com.todo.repository;
 
 import com.querydsl.jpa.impl.JPAQueryFactory;
-import com.todo.entity.QTodo;
+
 import com.todo.entity.Todo;
 import lombok.RequiredArgsConstructor;
 

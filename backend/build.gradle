@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.2.2'
     id 'io.spring.dependency-management' version '1.1.4'
+    id 'com.epages.restdocs-api-spec' version '0.19.2'
 }
 
 group = 'com.todo'
@@ -51,8 +52,35 @@ dependencies {
 
     // Test
     testImplementation 'org.springframework.security:spring-security-test'
+
+    // Spring REST Docs + restdocs-api-spec
+    testImplementation 'org.springframework.restdocs:spring-restdocs-mockmvc'
+    testImplementation 'com.epages:restdocs-api-spec-mockmvc:0.19.2'
 }
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+// OpenAPI 3.0 스펙 생성 설정
+openapi3 {
+    setServer("http://localhost:8080")
+    title = "Todo API"
+    description = "Todo 애플리케이션 REST API 문서"
+    version = "1.0.0"
+    format = "json"
+    outputFileNamePrefix = "openapi3"
+    outputDirectory = "build/api-spec"
+}
+
+// 테스트 후 OpenAPI 스펙 생성
+tasks.named('test') {
+    finalizedBy 'openapi3'
+}
+
+// OpenAPI 스펙을 static 폴더로 복사
+tasks.register('copyOpenApiSpec', Copy) {
+    dependsOn 'openapi3'
+    from("${project.buildDir}/api-spec")
+    into("${project.projectDir}/src/main/resources/static/docs")
 }

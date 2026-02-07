@@ -7,6 +7,7 @@ import lombok.ToString;
 @Getter
 @NoArgsConstructor
 @ToString
+@com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
 public class AuthRequest {
     private String email;
     private String password;

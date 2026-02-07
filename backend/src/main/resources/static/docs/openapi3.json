@@ -1,0 +1,409 @@
+{
+  "openapi" : "3.0.1",
+  "info" : {
+    "title" : "Todo API",
+    "description" : "Todo 애플리케이션 REST API 문서",
+    "version" : "1.0.0"
+  },
+  "servers" : [ {
+    "url" : "http://localhost:8080"
+  } ],
+  "tags" : [ ],
+  "paths" : {
+    "/api/todos" : {
+      "get" : {
+        "tags" : [ "Todo" ],
+        "summary" : "할 일 목록 조회",
+        "description" : "필터 조건에 따라 할 일 목록을 조회합니다.",
+        "operationId" : "todo-get-all",
+        "parameters" : [ {
+          "name" : "filter",
+          "in" : "query",
+          "description" : "필터 조건 (all, active, completed)",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-todos1281101631"
+                },
+                "examples" : {
+                  "todo-get-all" : {
+                    "value" : "[{\"id\":1,\"text\":\"Test 1\",\"completed\":false,\"displayOrder\":0,\"createdAt\":null,\"updatedAt\":null},{\"id\":2,\"text\":\"Test 2\",\"completed\":true,\"displayOrder\":1,\"createdAt\":null,\"updatedAt\":null}]"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "Todo" ],
+        "summary" : "할 일 생성",
+        "description" : "새로운 할 일을 생성합니다.",
+        "operationId" : "todo-create",
+        "requestBody" : {
+          "content" : {
+            "application/json;charset=UTF-8" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-todos-239923607"
+              },
+              "examples" : {
+                "todo-create" : {
+                  "value" : "{\"text\":\"New Todo\",\"completed\":null,\"displayOrder\":null}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "201" : {
+            "description" : "201",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-todos-486068120"
+                },
+                "examples" : {
+                  "todo-create" : {
+                    "value" : "{\"id\":1,\"text\":\"New Todo\",\"completed\":false,\"displayOrder\":0,\"createdAt\":null,\"updatedAt\":null}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/login" : {
+      "post" : {
+        "tags" : [ "Auth" ],
+        "summary" : "로그인",
+        "description" : "이메일과 비밀번호로 로그인하여 JWT 토큰을 발급받습니다.",
+        "operationId" : "auth-login",
+        "requestBody" : {
+          "content" : {
+            "application/json;charset=UTF-8" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-auth-login-788118888"
+              },
+              "examples" : {
+                "auth-login" : {
+                  "value" : "{\"email\":\"test@example.com\",\"password\":\"password123\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-auth-login-785501151"
+                },
+                "examples" : {
+                  "auth-login" : {
+                    "value" : "{\"grantType\":\"Bearer\",\"accessToken\":\"access-token\",\"refreshToken\":\"refresh-token\",\"nickname\":\"TestUser\",\"email\":\"test@example.com\",\"role\":\"USER\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/logout" : {
+      "post" : {
+        "tags" : [ "Auth" ],
+        "summary" : "로그아웃",
+        "description" : "현재 사용자를 로그아웃합니다.",
+        "operationId" : "auth-logout",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "text/plain;charset=UTF-8" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-auth-logout486549215"
+                },
+                "examples" : {
+                  "auth-logout" : {
+                    "value" : "로그아웃 성공"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/reissue" : {
+      "post" : {
+        "tags" : [ "Auth" ],
+        "summary" : "토큰 재발급",
+        "description" : "리프레시 토큰으로 새로운 토큰을 발급받습니다.",
+        "operationId" : "auth-reissue",
+        "requestBody" : {
+          "content" : {
+            "application/json;charset=UTF-8" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/api-auth-reissue1056639717"
+              },
+              "examples" : {
+                "auth-reissue" : {
+                  "value" : "{\"refreshToken\":\"old-refresh-token\"}"
+                }
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-auth-reissue-427605775"
+                },
+                "examples" : {
+                  "auth-reissue" : {
+                    "value" : "{\"grantType\":\"Bearer\",\"accessToken\":\"new-access-token\",\"refreshToken\":\"new-refresh-token\",\"nickname\":\"TestUser\",\"email\":\"test@example.com\",\"role\":\"USER\"}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/todos/stats" : {
+      "get" : {
+        "tags" : [ "Todo" ],
+        "summary" : "통계 조회",
+        "description" : "할 일 통계를 조회합니다.",
+        "operationId" : "todo-get-stats",
+        "responses" : {
+          "200" : {
+            "description" : "200",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/api-todos-stats-673408535"
+                },
+                "examples" : {
+                  "todo-get-stats" : {
+                    "value" : "{\"total\":10,\"active\":5,\"completed\":5}"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "api-auth-reissue-427605775" : {
+        "required" : [ "accessToken", "email", "grantType", "nickname", "refreshToken", "role" ],
+        "type" : "object",
+        "properties" : {
+          "role" : {
+            "type" : "string",
+            "description" : "사용자 역할"
+          },
+          "nickname" : {
+            "type" : "string",
+            "description" : "닉네임"
+          },
+          "accessToken" : {
+            "type" : "string",
+            "description" : "새 액세스 토큰"
+          },
+          "grantType" : {
+            "type" : "string",
+            "description" : "토큰 타입"
+          },
+          "email" : {
+            "type" : "string",
+            "description" : "이메일"
+          },
+          "refreshToken" : {
+            "type" : "string",
+            "description" : "새 리프레시 토큰"
+          }
+        }
+      },
+      "api-todos1281101631" : {
+        "type" : "array",
+        "items" : {
+          "required" : [ "completed", "displayOrder", "id", "text" ],
+          "type" : "object",
+          "properties" : {
+            "createdAt" : {
+              "type" : "string",
+              "description" : "생성일시",
+              "nullable" : true
+            },
+            "displayOrder" : {
+              "type" : "number",
+              "description" : "정렬 순서"
+            },
+            "completed" : {
+              "type" : "boolean",
+              "description" : "완료 여부"
+            },
+            "text" : {
+              "type" : "string",
+              "description" : "할 일 내용"
+            },
+            "id" : {
+              "type" : "number",
+              "description" : "할 일 ID"
+            },
+            "updatedAt" : {
+              "type" : "string",
+              "description" : "수정일시",
+              "nullable" : true
+            }
+          }
+        }
+      },
+      "api-todos-stats-673408535" : {
+        "required" : [ "active", "completed", "total" ],
+        "type" : "object",
+        "properties" : {
+          "total" : {
+            "type" : "number",
+            "description" : "전체 할 일 수"
+          },
+          "active" : {
+            "type" : "number",
+            "description" : "진행 중인 할 일 수"
+          },
+          "completed" : {
+            "type" : "number",
+            "description" : "완료된 할 일 수"
+          }
+        }
+      },
+      "api-todos-239923607" : {
+        "required" : [ "text" ],
+        "type" : "object",
+        "properties" : {
+          "displayOrder" : {
+            "type" : "number",
+            "description" : "정렬 순서",
+            "nullable" : true
+          },
+          "completed" : {
+            "type" : "boolean",
+            "description" : "완료 여부",
+            "nullable" : true
+          },
+          "text" : {
+            "type" : "string",
+            "description" : "할 일 내용"
+          }
+        }
+      },
+      "api-auth-login-788118888" : {
+        "required" : [ "email", "password" ],
+        "type" : "object",
+        "properties" : {
+          "password" : {
+            "type" : "string",
+            "description" : "비밀번호"
+          },
+          "email" : {
+            "type" : "string",
+            "description" : "이메일"
+          }
+        }
+      },
+      "api-auth-reissue1056639717" : {
+        "required" : [ "refreshToken" ],
+        "type" : "object",
+        "properties" : {
+          "refreshToken" : {
+            "type" : "string",
+            "description" : "리프레시 토큰"
+          }
+        }
+      },
+      "api-auth-login-785501151" : {
+        "required" : [ "accessToken", "email", "grantType", "nickname", "refreshToken", "role" ],
+        "type" : "object",
+        "properties" : {
+          "role" : {
+            "type" : "string",
+            "description" : "사용자 역할"
+          },
+          "nickname" : {
+            "type" : "string",
+            "description" : "닉네임"
+          },
+          "accessToken" : {
+            "type" : "string",
+            "description" : "액세스 토큰"
+          },
+          "grantType" : {
+            "type" : "string",
+            "description" : "토큰 타입"
+          },
+          "email" : {
+            "type" : "string",
+            "description" : "이메일"
+          },
+          "refreshToken" : {
+            "type" : "string",
+            "description" : "리프레시 토큰"
+          }
+        }
+      },
+      "api-auth-logout486549215" : {
+        "type" : "object"
+      },
+      "api-todos-486068120" : {
+        "required" : [ "completed", "displayOrder", "id", "text" ],
+        "type" : "object",
+        "properties" : {
+          "createdAt" : {
+            "type" : "string",
+            "description" : "생성일시",
+            "nullable" : true
+          },
+          "displayOrder" : {
+            "type" : "number",
+            "description" : "정렬 순서"
+          },
+          "completed" : {
+            "type" : "boolean",
+            "description" : "완료 여부"
+          },
+          "text" : {
+            "type" : "string",
+            "description" : "할 일 내용"
+          },
+          "id" : {
+            "type" : "number",
+            "description" : "할 일 ID"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "description" : "수정일시",
+            "nullable" : true
+          }
+        }
+      }
+    }
+  }
+}

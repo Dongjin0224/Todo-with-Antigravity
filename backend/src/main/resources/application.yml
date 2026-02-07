@@ -30,3 +30,11 @@ cors:
 # JWT 설정
 jwt:
   secret: ${JWT_SECRET:VG9kb0FwcFNlY3JldEtleU11c3RCZUxvbmdFbm91Z2hGb3JIUzUxMkFsZ29yaXRobU9yYXRMZWFzdDI1NkJpdHM=} # 개발용 기본값 설정, 배포 시 환경변수 필수
+  access-token-validity: 1800000  # 30분 (밀리초)
+  refresh-token-validity: 1209600000  # 14일 (밀리초)
+
+# Redis 설정
+spring.data.redis:
+  host: localhost
+  port: 6379
+

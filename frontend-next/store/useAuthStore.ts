@@ -10,8 +10,9 @@ interface User {
 interface AuthState {
     user: User | null;
     accessToken: string | null;
+    refreshToken: string | null;
     isAuthenticated: boolean;
-    login: (user: User, token: string) => void;
+    login: (user: User, accessToken: string, refreshToken: string) => void;
     logout: () => void;
 }
 
@@ -20,19 +21,27 @@ export const useAuthStore = create<AuthState>()(
         (set) => ({
             user: null,
             accessToken: null,
+            refreshToken: null,
             isAuthenticated: false,
-            login: (user, token) => {
-                localStorage.setItem('accessToken', token);
-                set({ user, accessToken: token, isAuthenticated: true });
+            login: (user, accessToken, refreshToken) => {
+                localStorage.setItem('accessToken', accessToken);
+                localStorage.setItem('refreshToken', refreshToken);
+                set({ user, accessToken, refreshToken, isAuthenticated: true });
             },
             logout: () => {
                 localStorage.removeItem('accessToken');
-                set({ user: null, accessToken: null, isAuthenticated: false });
+                localStorage.removeItem('refreshToken');
+                set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
             },
         }),
         {
-            name: 'auth-storage', // key in localStorage
-            partialize: (state) => ({ user: state.user, accessToken: state.accessToken, isAuthenticated: state.isAuthenticated }),
+            name: 'auth-storage',
+            partialize: (state) => ({
+                user: state.user,
+                accessToken: state.accessToken,
+                refreshToken: state.refreshToken,
+                isAuthenticated: state.isAuthenticated,
+            }),
         }
     )
 );

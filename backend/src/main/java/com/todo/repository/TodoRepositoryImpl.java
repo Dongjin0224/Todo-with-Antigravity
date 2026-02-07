@@ -14,9 +14,10 @@ public class TodoRepositoryImpl implements TodoRepositoryCustom {
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public List<Todo> findAllSorted() {
+    public List<Todo> findAllSorted(Long memberId) {
         return queryFactory
                 .selectFrom(todo)
+                .where(todo.member.id.eq(memberId))
                 .orderBy(
                         todo.displayOrder.asc(),
                         todo.createdAt.desc())
@@ -24,19 +25,21 @@ public class TodoRepositoryImpl implements TodoRepositoryCustom {
     }
 
     @Override
-    public List<Todo> findCompletedSorted(boolean completed) {
+    public List<Todo> findCompletedSorted(Long memberId, boolean completed) {
         return queryFactory
                 .selectFrom(todo)
-                .where(todo.completed.eq(completed))
+                .where(todo.member.id.eq(memberId)
+                        .and(todo.completed.eq(completed)))
                 .orderBy(todo.displayOrder.asc())
                 .fetch();
     }
 
     @Override
-    public void deleteCompleted() {
+    public void deleteCompleted(Long memberId) {
         queryFactory
                 .delete(todo)
-                .where(todo.completed.eq(true))
+                .where(todo.member.id.eq(memberId)
+                        .and(todo.completed.eq(true)))
                 .execute();
     }
 }

@@ -22,6 +22,11 @@ spring:
 server:
   port: 8080
 
+
 # CORS 설정 (프론트엔드 연동용)
 cors:
   allowed-origins: "*"
+
+# JWT 설정
+jwt:
+  secret: ${JWT_SECRET:VG9kb0FwcFNlY3JldEtleU11c3RCZUxvbmdFbm91Z2hGb3JIUzUxMkFsZ29yaXRobU9yYXRMZWFzdDI1NkJpdHM=} # 개발용 기본값 설정, 배포 시 환경변수 필수

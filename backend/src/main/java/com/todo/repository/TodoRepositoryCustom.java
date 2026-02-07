@@ -5,9 +5,9 @@ import com.todo.entity.Todo;
 import java.util.List;
 
 public interface TodoRepositoryCustom {
-    List<Todo> findAllSorted();
+    List<Todo> findAllSorted(Long memberId);
 
-    List<Todo> findCompletedSorted(boolean completed);
+    List<Todo> findCompletedSorted(Long memberId, boolean completed);
 
-    void deleteCompleted();
+    void deleteCompleted(Long memberId);
 }

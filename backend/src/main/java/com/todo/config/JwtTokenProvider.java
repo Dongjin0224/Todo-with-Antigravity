@@ -18,6 +18,7 @@ import java.security.Key;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -25,23 +26,32 @@ import java.util.stream.Collectors;
 public class JwtTokenProvider {
 
     private static final String AUTHORITIES_KEY = "auth";
-    private static final String BEARER_TYPE = "Bearer";
-    private static final long ACCESS_TOKEN_EXPIRE_TIME = 1000 * 60 * 30; // 30분
 
     private final Key key;
+    private final long accessTokenValidity;
+    private final long refreshTokenValidity;
 
-    public JwtTokenProvider(@Value("${jwt.secret}") String secretKey) {
+    public JwtTokenProvider(
+            @Value("${jwt.secret}") String secretKey,
+            @Value("${jwt.access-token-validity}") long accessTokenValidity,
+            @Value("${jwt.refresh-token-validity}") long refreshTokenValidity) {
         byte[] keyBytes = Decoders.BASE64.decode(secretKey);
         this.key = Keys.hmacShaKeyFor(keyBytes);
+        this.accessTokenValidity = accessTokenValidity;
+        this.refreshTokenValidity = refreshTokenValidity;
     }
 
-    public String generateToken(Authentication authentication) {
+    public long getRefreshTokenValidity() {
+        return refreshTokenValidity;
+    }
+
+    public String generateAccessToken(Authentication authentication) {
         String authorities = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.joining(","));
 
         long now = (new Date()).getTime();
-        Date accessTokenExpiresIn = new Date(now + ACCESS_TOKEN_EXPIRE_TIME);
+        Date accessTokenExpiresIn = new Date(now + accessTokenValidity);
 
         return Jwts.builder()
                 .subject(authentication.getName())
@@ -49,6 +59,10 @@ public class JwtTokenProvider {
                 .expiration(accessTokenExpiresIn)
                 .signWith(key)
                 .compact();
+    }
+
+    public String generateRefreshToken() {
+        return UUID.randomUUID().toString();
     }
 
     public Authentication getAuthentication(String accessToken) {

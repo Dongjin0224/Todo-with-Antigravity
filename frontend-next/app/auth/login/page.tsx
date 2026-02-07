@@ -23,7 +23,8 @@ export default function LoginPage() {
             const data = await login({ email, password });
             loginUser(
                 { email: data.email, nickname: data.nickname, role: data.role },
-                data.accessToken
+                data.accessToken,
+                data.refreshToken
             );
             router.push('/');
         } catch (err: any) {

@@ -18,7 +18,7 @@ export type TodoStats = {
 export interface AuthResponse {
     grantType: string;
     accessToken: string;
-    accessTokenExpiresIn: number;
+    refreshToken: string;
     nickname: string;
     email: string;
     role: string;

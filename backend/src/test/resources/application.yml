@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: todo-backend
+
+  # H2 In-Memory Database for testing
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  # JPA 설정
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.H2Dialect
+
+  # Redis 비활성화 (테스트용)
+  data:
+    redis:
+      repositories:
+        enabled: false
+
+server:
+  port: 8080
+
+# JWT 설정
+jwt:
+  secret: VG9kb0FwcFNlY3JldEtleU11c3RCZUxvbmdFbm91Z2hGb3JIUzUxMkFsZ29yaXRobU9yYXRMZWFzdDI1NkJpdHM=
+  access-token-validity: 1800000
+  refresh-token-validity: 1209600000

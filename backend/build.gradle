@@ -46,12 +46,9 @@ dependencies {
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.3'
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.3'
 
-<<<<<<< HEAD
     // Redis
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
-=======
->>>>>>> origin/main
     // Test
     testImplementation 'org.springframework.security:spring-security-test'
 }

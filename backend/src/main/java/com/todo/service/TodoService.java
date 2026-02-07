@@ -2,11 +2,16 @@ package com.todo.service;
 
 import com.todo.dto.TodoRequest;
 import com.todo.dto.TodoResponse;
+import com.todo.entity.Member;
 import com.todo.entity.Todo;
+import com.todo.repository.MemberRepository;
 import com.todo.repository.TodoRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Transactional;//
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -18,38 +23,42 @@ import java.util.stream.Collectors;
  * @RequiredArgsConstructor: final 필드 생성자 자동 생성 (DI)
  * @Transactional: 트랜잭션 관리 (예외 발생 시 롤백)
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true) // 기본적으로 읽기 전용 (성능 최적화)
+@Transactional(readOnly = true)
 public class TodoService {
 
     private final TodoRepository todoRepository;
+    private final MemberRepository memberRepository;
 
     /**
-     * 전체 Todo 조회
+     * 전체 Todo 조회 (현재 로그인한 사용자 기준)
      */
     public List<TodoResponse> findAll() {
-        return todoRepository.findAllSorted()
+        Member currentMember = getCurrentMember();
+        return todoRepository.findAllSorted(currentMember.getId())
                 .stream()
-                .map(TodoResponse::from) // Entity → DTO 변환
+                .map(TodoResponse::from)
                 .collect(Collectors.toList());
     }
 
     /**
-     * 필터별 Todo 조회
+     * 필터별 Todo 조회 (현재 로그인한 사용자 기준)
      */
     public List<TodoResponse> findByFilter(String filter) {
+        Member currentMember = getCurrentMember();
         List<Todo> todos;
 
         switch (filter) {
             case "active":
-                todos = todoRepository.findCompletedSorted(false);
+                todos = todoRepository.findCompletedSorted(currentMember.getId(), false);
                 break;
             case "completed":
-                todos = todoRepository.findCompletedSorted(true);
+                todos = todoRepository.findCompletedSorted(currentMember.getId(), true);
                 break;
             default:
-                todos = todoRepository.findAllSorted();
+                todos = todoRepository.findAllSorted(currentMember.getId());
         }
 
         return todos.stream()
@@ -58,28 +67,32 @@ public class TodoService {
     }
 
     /**
-     * 단일 Todo 조회
+     * 단일 Todo 조회 (본인 것만 허용)
      */
     public TodoResponse findById(Long id) {
+        Member currentMember = getCurrentMember();
         Todo todo = todoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Todo not found: " + id));
+
+        validateOwnership(todo, currentMember);
         return TodoResponse.from(todo);
     }
 
     /**
      * Todo 생성
-     * 
-     * @Transactional: 쓰기 작업이므로 readOnly = false
      */
     @Transactional
     public TodoResponse create(TodoRequest request) {
+        Member currentMember = getCurrentMember();
+
         // 새 Todo의 순서는 현재 개수 (맨 뒤에 추가)
-        int order = (int) todoRepository.count();
+        int order = (int) todoRepository.countByMemberId(currentMember.getId());
 
         Todo todo = Todo.builder()
                 .text(request.getText())
                 .completed(request.getCompleted())
                 .displayOrder(order)
+                .member(currentMember)
                 .build();
 
         Todo saved = todoRepository.save(todo);
@@ -91,10 +104,12 @@ public class TodoService {
      */
     @Transactional
     public TodoResponse update(Long id, TodoRequest request) {
+        Member currentMember = getCurrentMember();
         Todo todo = todoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Todo not found: " + id));
 
-        // 변경할 필드만 업데이트
+        validateOwnership(todo, currentMember);
+
         if (request.getText() != null) {
             todo.updateText(request.getText());
         }
@@ -105,7 +120,6 @@ public class TodoService {
             todo.updateOrder(request.getDisplayOrder());
         }
 
-        // JPA 변경 감지 (Dirty Checking) - save() 호출 안 해도 자동 UPDATE
         return TodoResponse.from(todo);
     }
 
@@ -114,8 +128,11 @@ public class TodoService {
      */
     @Transactional
     public TodoResponse toggleComplete(Long id) {
+        Member currentMember = getCurrentMember();
         Todo todo = todoRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Todo not found: " + id));
+
+        validateOwnership(todo, currentMember);
 
         todo.toggleCompleted();
         return TodoResponse.from(todo);
@@ -126,34 +143,60 @@ public class TodoService {
      */
     @Transactional
     public void delete(Long id) {
-        if (!todoRepository.existsById(id)) {
-            throw new IllegalArgumentException("Todo not found: " + id);
-        }
+        Member currentMember = getCurrentMember();
+        Todo todo = todoRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Todo not found: " + id));
+
+        validateOwnership(todo, currentMember);
+
         todoRepository.deleteById(id);
     }
 
     /**
-     * 완료된 Todo 일괄 삭제
+     * 완료된 Todo 일괄 삭제 (본인 것만)
      */
     @Transactional
     public void deleteCompleted() {
-        todoRepository.deleteCompleted();
+        Member currentMember = getCurrentMember();
+        todoRepository.deleteCompleted(currentMember.getId());
     }
 
     /**
-     * 통계 조회 (전체, 진행중, 완료)
+     * 통계 조회
      */
     public TodoStats getStats() {
-        long total = todoRepository.count();
-        long completed = todoRepository.countByCompleted(true);
+        Member currentMember = getCurrentMember();
+        long total = todoRepository.countByMemberId(currentMember.getId());
+        long completed = todoRepository.countByMemberIdAndCompleted(currentMember.getId(), true);
         long active = total - completed;
 
         return new TodoStats(total, active, completed);
     }
 
     /**
-     * 통계 데이터 클래스
+     * 현재 로그인한 사용자 가져오기
      */
+    private Member getCurrentMember() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) {
+            log.error("Authentication object is null");
+            throw new RuntimeException("로그인된 사용자를 찾을 수 없습니다. (Auth is null)");
+        }
+        String email = authentication.getName();
+        log.info("getCurrentMember email: {}", email);
+        return memberRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("로그인된 사용자를 찾을 수 없습니다: " + email));
+    }
+
+    /**
+     * 소유권 검증 (내 Todo가 맞는지)
+     */
+    private void validateOwnership(Todo todo, Member member) {
+        if (!todo.getMember().getId().equals(member.getId())) {
+            throw new RuntimeException("해당 Todo에 대한 권한이 없습니다.");
+        }
+    }
+
     public record TodoStats(long total, long active, long completed) {
     }
 }

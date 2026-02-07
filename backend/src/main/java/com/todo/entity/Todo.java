@@ -66,11 +66,19 @@ public class Todo {
     /**
      * 빌더 패턴으로 객체 생성
      */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "member_id", nullable = false)
+    private Member member;
+
+    /**
+     * 빌더 패턴으로 객체 생성
+     */
     @Builder
-    public Todo(String text, Boolean completed, Integer displayOrder) {
+    public Todo(String text, Boolean completed, Integer displayOrder, Member member) {
         this.text = text;
         this.completed = completed != null ? completed : false;
         this.displayOrder = displayOrder != null ? displayOrder : 0;
+        this.member = member;
     }
 
     /**

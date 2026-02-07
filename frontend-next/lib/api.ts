@@ -1,5 +1,6 @@
-const API_BASE_URL = 'http://localhost:8080/api/todos';
+import api from './axios';
 
+// Interfaces match Backend DTOs
 export interface Todo {
     id: number;
     text: string;
@@ -14,56 +15,66 @@ export type TodoStats = {
     completed: number;
 };
 
-export async function fetchTodos(filter: string = 'all'): Promise<Todo[]> {
-    const res = await fetch(`${API_BASE_URL}?filter=${filter}`, { cache: 'no-store' });
-    if (!res.ok) throw new Error('Failed to fetch todos');
-    return res.json();
+export interface AuthResponse {
+    grantType: string;
+    accessToken: string;
+    accessTokenExpiresIn: number;
+    nickname: string;
+    email: string;
+    role: string;
 }
 
-export async function createTodo(text: string): Promise<Todo> {
-    const res = await fetch(API_BASE_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
-    });
-    if (!res.ok) throw new Error('Failed to create todo');
-    return res.json();
+export interface SignupRequest {
+    email: string;
+    password: string;
+    nickname: string;
 }
 
-export async function updateTodo(id: number, updates: Partial<Todo>): Promise<Todo> {
-    const res = await fetch(`${API_BASE_URL}/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates),
-    });
-    if (!res.ok) throw new Error('Failed to update todo');
-    return res.json();
+export interface LoginRequest {
+    email: string;
+    password: string;
 }
 
-export async function toggleTodo(id: number): Promise<Todo> {
-    const res = await fetch(`${API_BASE_URL}/${id}/toggle`, {
-        method: 'PATCH',
-    });
-    if (!res.ok) throw new Error('Failed to toggle todo');
-    return res.json();
-}
+// Auth API
+export const login = async (data: LoginRequest): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>('/auth/login', data);
+    return response.data;
+};
 
-export async function deleteTodo(id: number): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/${id}`, {
-        method: 'DELETE',
-    });
-    if (!res.ok) throw new Error('Failed to delete todo');
-}
+export const signup = async (data: SignupRequest): Promise<void> => {
+    await api.post('/auth/signup', data);
+};
 
-export async function clearCompletedTodos(): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/completed`, {
-        method: 'DELETE',
-    });
-    if (!res.ok) throw new Error('Failed to clear completed todos');
-}
+// Todo API
+export const fetchTodos = async (filter: string = 'all'): Promise<Todo[]> => {
+    const response = await api.get<Todo[]>('/todos', { params: { filter } });
+    return response.data;
+};
 
-export async function fetchStats(): Promise<TodoStats> {
-    const res = await fetch(`${API_BASE_URL}/stats`, { cache: 'no-store' });
-    if (!res.ok) throw new Error('Failed to fetch stats');
-    return res.json();
-}
+export const createTodo = async (text: string): Promise<Todo> => {
+    const response = await api.post<Todo>('/todos', { text });
+    return response.data;
+};
+
+export const updateTodo = async (id: number, updates: Partial<Todo>): Promise<Todo> => {
+    const response = await api.put<Todo>(`/todos/${id}`, updates);
+    return response.data;
+};
+
+export const toggleTodo = async (id: number): Promise<Todo> => {
+    const response = await api.patch<Todo>(`/todos/${id}/toggle`);
+    return response.data;
+};
+
+export const deleteTodo = async (id: number): Promise<void> => {
+    await api.delete(`/todos/${id}`);
+};
+
+export const clearCompletedTodos = async (): Promise<void> => {
+    await api.delete('/todos/completed');
+};
+
+export const fetchStats = async (): Promise<TodoStats> => {
+    const response = await api.get<TodoStats>('/todos/stats');
+    return response.data;
+};

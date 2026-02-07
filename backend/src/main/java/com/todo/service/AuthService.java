@@ -4,9 +4,13 @@ import com.todo.config.JwtTokenProvider;
 import com.todo.dto.AuthRequest;
 import com.todo.dto.AuthResponse;
 import com.todo.entity.Member;
+<<<<<<< HEAD
 import com.todo.entity.RefreshToken;
 import com.todo.repository.MemberRepository;
 import com.todo.repository.RefreshTokenRepository;
+=======
+import com.todo.repository.MemberRepository;
+>>>>>>> origin/main
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
@@ -23,10 +27,16 @@ public class AuthService {
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+<<<<<<< HEAD
     private final RefreshTokenRepository refreshTokenRepository;
 
     @Transactional
     public void signup(AuthRequest authRequest) {
+=======
+
+    @Transactional
+    public AuthResponse signup(AuthRequest authRequest) {
+>>>>>>> origin/main
         if (memberRepository.existsByEmail(authRequest.getEmail())) {
             throw new RuntimeException("이미 가입되어 있는 유저입니다");
         }
@@ -39,6 +49,12 @@ public class AuthService {
                 .build();
 
         memberRepository.save(member);
+<<<<<<< HEAD
+=======
+
+        // 회원가입 후 자동 로그인 처리 없음 -> 로그인 유도
+        return null;
+>>>>>>> origin/main
     }
 
     @Transactional
@@ -47,6 +63,7 @@ public class AuthService {
         UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
                 authRequest.getEmail(), authRequest.getPassword());
 
+<<<<<<< HEAD
         // 2. 실제로 검증 (사용자 비밀번호 체크)
         Authentication authentication = authenticationManagerBuilder.getObject().authenticate(authenticationToken);
 
@@ -70,11 +87,30 @@ public class AuthService {
                 .grantType("Bearer")
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
+=======
+        // 2. 실제로 검증 (사용자 비밀번호 체크) 이 이루어지는 부분
+        // authenticate 메서드가 실행될 때 CustomUserDetailsService 에서 만든 loadUserByUsername
+        // 메서드가 실행됨
+        Authentication authentication = authenticationManagerBuilder.getObject().authenticate(authenticationToken);
+
+        // 3. 인증 정보를 기반으로 JWT 토큰 생성
+        String accessToken = jwtTokenProvider.generateToken(authentication);
+
+        // 4. 토큰 발급 (Nickname 등 추가 정보 포함 가능하게)
+        Member member = memberRepository.findByEmail(authRequest.getEmail())
+                .orElseThrow(() -> new RuntimeException("유저 정보가 없습니다."));
+
+        return AuthResponse.builder()
+                .grantType("Bearer")
+                .accessToken(accessToken)
+                .accessTokenExpiresIn(1000 * 60 * 30L) // 30분
+>>>>>>> origin/main
                 .nickname(member.getNickname())
                 .email(member.getEmail())
                 .role(member.getRole().name())
                 .build();
     }
+<<<<<<< HEAD
 
     @Transactional
     public AuthResponse reissue(String refreshToken) {
@@ -114,4 +150,6 @@ public class AuthService {
                 .orElseThrow(() -> new RuntimeException("유저 정보가 없습니다."));
         refreshTokenRepository.deleteById(member.getId().toString());
     }
+=======
+>>>>>>> origin/main
 }

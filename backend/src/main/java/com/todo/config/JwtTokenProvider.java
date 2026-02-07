@@ -18,7 +18,10 @@ import java.security.Key;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
+<<<<<<< HEAD
 import java.util.UUID;
+=======
+>>>>>>> origin/main
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -26,6 +29,7 @@ import java.util.stream.Collectors;
 public class JwtTokenProvider {
 
     private static final String AUTHORITIES_KEY = "auth";
+<<<<<<< HEAD
 
     private final Key key;
     private final long accessTokenValidity;
@@ -46,12 +50,29 @@ public class JwtTokenProvider {
     }
 
     public String generateAccessToken(Authentication authentication) {
+=======
+    private static final String BEARER_TYPE = "Bearer";
+    private static final long ACCESS_TOKEN_EXPIRE_TIME = 1000 * 60 * 30; // 30분
+
+    private final Key key;
+
+    public JwtTokenProvider(@Value("${jwt.secret}") String secretKey) {
+        byte[] keyBytes = Decoders.BASE64.decode(secretKey);
+        this.key = Keys.hmacShaKeyFor(keyBytes);
+    }
+
+    public String generateToken(Authentication authentication) {
+>>>>>>> origin/main
         String authorities = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.joining(","));
 
         long now = (new Date()).getTime();
+<<<<<<< HEAD
         Date accessTokenExpiresIn = new Date(now + accessTokenValidity);
+=======
+        Date accessTokenExpiresIn = new Date(now + ACCESS_TOKEN_EXPIRE_TIME);
+>>>>>>> origin/main
 
         return Jwts.builder()
                 .subject(authentication.getName())
@@ -61,10 +82,13 @@ public class JwtTokenProvider {
                 .compact();
     }
 
+<<<<<<< HEAD
     public String generateRefreshToken() {
         return UUID.randomUUID().toString();
     }
 
+=======
+>>>>>>> origin/main
     public Authentication getAuthentication(String accessToken) {
         Claims claims = parseClaims(accessToken);
 

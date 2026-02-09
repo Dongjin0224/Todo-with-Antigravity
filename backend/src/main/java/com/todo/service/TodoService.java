@@ -4,6 +4,9 @@ import com.todo.dto.TodoRequest;
 import com.todo.dto.TodoResponse;
 import com.todo.entity.Member;
 import com.todo.entity.Todo;
+import com.todo.exception.ForbiddenException;
+import com.todo.exception.ResourceNotFoundException;
+import com.todo.exception.UnauthorizedException;
 import com.todo.repository.MemberRepository;
 import com.todo.repository.TodoRepository;
 import lombok.RequiredArgsConstructor;
@@ -72,7 +75,7 @@ public class TodoService {
     public TodoResponse findById(Long id) {
         Member currentMember = getCurrentMember();
         Todo todo = todoRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Todo not found: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Todo not found: " + id));
 
         validateOwnership(todo, currentMember);
         return TodoResponse.from(todo);
@@ -106,7 +109,7 @@ public class TodoService {
     public TodoResponse update(Long id, TodoRequest request) {
         Member currentMember = getCurrentMember();
         Todo todo = todoRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Todo not found: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Todo not found: " + id));
 
         validateOwnership(todo, currentMember);
 
@@ -130,7 +133,7 @@ public class TodoService {
     public TodoResponse toggleComplete(Long id) {
         Member currentMember = getCurrentMember();
         Todo todo = todoRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Todo not found: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Todo not found: " + id));
 
         validateOwnership(todo, currentMember);
 
@@ -145,7 +148,7 @@ public class TodoService {
     public void delete(Long id) {
         Member currentMember = getCurrentMember();
         Todo todo = todoRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Todo not found: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("Todo not found: " + id));
 
         validateOwnership(todo, currentMember);
 
@@ -180,12 +183,12 @@ public class TodoService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null) {
             log.error("Authentication object is null");
-            throw new RuntimeException("로그인된 사용자를 찾을 수 없습니다. (Auth is null)");
+            throw new UnauthorizedException("로그인된 사용자를 찾을 수 없습니다. (Auth is null)");
         }
         String email = authentication.getName();
         log.info("getCurrentMember email: {}", email);
         return memberRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("로그인된 사용자를 찾을 수 없습니다: " + email));
+                .orElseThrow(() -> new UnauthorizedException("로그인된 사용자를 찾을 수 없습니다."));
     }
 
     /**
@@ -193,7 +196,7 @@ public class TodoService {
      */
     private void validateOwnership(Todo todo, Member member) {
         if (!todo.getMember().getId().equals(member.getId())) {
-            throw new RuntimeException("해당 Todo에 대한 권한이 없습니다.");
+            throw new ForbiddenException("해당 Todo에 대한 권한이 없습니다.");
         }
     }
 

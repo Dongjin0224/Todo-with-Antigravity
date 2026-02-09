@@ -2,6 +2,7 @@ package com.todo.controller;
 
 import com.todo.dto.AuthRequest;
 import com.todo.dto.AuthResponse;
+import com.todo.exception.UnauthorizedException;
 import com.todo.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -36,6 +37,9 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ResponseEntity<String> logout(@AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            throw new UnauthorizedException("인증이 필요합니다.");
+        }
         authService.logout(userDetails.getUsername());
         return ResponseEntity.ok("로그아웃 성공");
     }

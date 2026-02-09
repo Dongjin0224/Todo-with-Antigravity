@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.todo.config.RestDocsConfig;
 import com.todo.dto.AuthRequest;
 import com.todo.dto.AuthResponse;
+import com.todo.exception.DuplicateResourceException;
+import com.todo.exception.UnauthorizedException;
 import com.todo.service.AuthService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,6 +29,7 @@ import java.util.Map;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.post;
 import static org.springframework.restdocs.payload.PayloadDocumentation.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -176,5 +179,43 @@ class AuthControllerTest {
                                                                 .summary("로그아웃")
                                                                 .description("현재 사용자를 로그아웃합니다.")
                                                                 .build())));
+        }
+
+        @Test
+        @DisplayName("로그아웃 요청 시 비인증 사용자는 401을 반환한다")
+        void logout_Unauthenticated_ShouldReturn401() throws Exception {
+                mockMvc.perform(post("/api/auth/logout"))
+                                .andExpect(status().isUnauthorized())
+                                .andExpect(jsonPath("$.status").value(401));
+        }
+
+        @Test
+        @DisplayName("회원가입 시 중복 유저면 409를 반환한다")
+        void signup_DuplicateUser_ShouldReturn409() throws Exception {
+                AuthRequest request = new AuthRequest("test@example.com", "password123", "tester");
+                doThrow(new DuplicateResourceException("이미 가입되어 있는 유저입니다."))
+                                .when(authService).signup(any(AuthRequest.class));
+
+                mockMvc.perform(post("/api/auth/signup")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                                .andExpect(status().isConflict())
+                                .andExpect(jsonPath("$.status").value(409))
+                                .andExpect(jsonPath("$.message").value("이미 가입되어 있는 유저입니다."));
+        }
+
+        @Test
+        @DisplayName("토큰 재발급 시 리프레시 토큰이 유효하지 않으면 401을 반환한다")
+        void reissue_InvalidRefreshToken_ShouldReturn401() throws Exception {
+                Map<String, String> request = Map.of("refreshToken", "invalid-token");
+                given(authService.reissue("invalid-token"))
+                                .willThrow(new UnauthorizedException("유효하지 않은 Refresh Token입니다."));
+
+                mockMvc.perform(post("/api/auth/reissue")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+                                .andExpect(status().isUnauthorized())
+                                .andExpect(jsonPath("$.status").value(401))
+                                .andExpect(jsonPath("$.message").value("유효하지 않은 Refresh Token입니다."));
         }
 }

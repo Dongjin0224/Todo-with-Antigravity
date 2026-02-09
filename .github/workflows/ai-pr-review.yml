@@ -2,7 +2,7 @@ name: AI PR Review
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
     branches: ["main"]
   workflow_dispatch:
 
@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   review:
-    if: ${{ !github.event.pull_request.draft }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (!github.event.pull_request.draft && contains(github.event.pull_request.labels.*.name, 'ai-reviw')) }}
     runs-on: ubuntu-latest
 
     steps:
@@ -55,18 +55,18 @@ jobs:
             const diffText = diffChunks.join("\n\n").slice(0, MAX_DIFF_CHARS);
 
             const prompt = [
-              `You are a strict senior code reviewer.`,
-              `Review this pull request and focus on:`,
-              `1) Bugs or logic errors`,
-              `2) Security/privacy risks`,
-              `3) Behavioral regressions`,
-              `4) Missing tests and edge cases`,
-              `Return concise markdown in this structure:`,
-              `- Critical findings`,
-              `- Major findings`,
-              `- Minor findings`,
-              `- Missing tests`,
-              `If none, explicitly say 'No critical issues found.'`,
+              `너는 엄격한 시니어 코드 리뷰어다.`,
+              `아래 Pull Request를 리뷰하고 다음 항목에 집중해라:`,
+              `1) 버그 또는 로직 오류`,
+              `2) 보안/개인정보 위험`,
+              `3) 동작 회귀(기존 기능 깨짐)`,
+              `4) 누락된 테스트와 엣지 케이스`,
+              `응답은 반드시 한국어 마크다운으로, 아래 구조를 정확히 사용해라:`,
+              `- 치명적 이슈`,
+              `- 주요 이슈`,
+              `- 경미한 이슈`,
+              `- 누락된 테스트`,
+              `치명적 이슈가 없으면 반드시 '치명적 이슈 없음.'이라고 명시해라.`,
               ``,
               `PR title: ${pr.data.title}`,
               `PR body: ${pr.data.body || "(empty)"}`,
@@ -89,14 +89,13 @@ jobs:
 
             if (!response.ok) {
               const errText = await response.text();
-              // Do not fail the whole PR check for quota/billing issues.
               if (response.status === 429 && errText.includes("insufficient_quota")) {
                 const quotaBody = [
                   marker,
                   "## AI PR Review",
                   "",
-                  "AI review skipped: OpenAI API quota is exceeded (`insufficient_quota`).",
-                  "Check OpenAI billing/quota settings, then push a new commit or re-run this workflow.",
+                  "AI 리뷰가 건너뛰어졌습니다: OpenAI API 쿼터 초과(`insufficient_quota`).",
+                  "OpenAI 결제/쿼터 설정을 확인한 뒤, 새 커밋을 푸시하거나 워크플로우를 다시 실행하세요.",
                   "",
                   `Model: \`${process.env.OPENAI_MODEL || "gpt-4.1-mini"}\``
                 ].join("\n");

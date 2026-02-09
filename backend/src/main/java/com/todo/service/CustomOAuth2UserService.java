@@ -60,10 +60,21 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         Member member;
         if (existingMember.isPresent()) {
             member = existingMember.get();
-            // 기존 계정에 OAuth 연동
+
+            // 기존 계정이 LOCAL인 경우 OAuth 연동
             if (member.getProvider() == Provider.LOCAL) {
                 member.linkOAuthAccount(provider, providerId);
-                log.info("기존 계정과 OAuth 연동: email={}", email);
+                log.info("기존 LOCAL 계정과 OAuth 연동: email={}, provider={}", email, provider);
+            }
+            // 같은 OAuth provider로 로그인하는 경우 - 정상 로그인
+            else if (member.getProvider() == provider) {
+                log.info("기존 OAuth 계정으로 로그인: email={}, provider={}", email, provider);
+            }
+            // 다른 OAuth provider로 로그인 시도하는 경우 - 기존 계정에 추가 연동
+            else {
+                log.info("다른 OAuth provider로 로그인 시도 - 기존 계정 사용: email={}, 기존provider={}, 시도provider={}",
+                        email, member.getProvider(), provider);
+                // 기존 계정 유지 (필요시 추가 provider 연동 로직 구현 가능)
             }
         } else {
             // 신규 회원 생성

@@ -13,6 +13,13 @@ export default function OAuthCallbackPage() {
     useEffect(() => {
         const accessToken = searchParams.get('accessToken');
         const refreshToken = searchParams.get('refreshToken');
+        const errorParam = searchParams.get('error');
+
+        // 서버에서 에러를 전달한 경우
+        if (errorParam) {
+            setError(decodeURIComponent(errorParam));
+            return;
+        }
 
         if (accessToken && refreshToken) {
             // JWT 토큰을 파싱하여 사용자 정보 추출
@@ -21,7 +28,7 @@ export default function OAuthCallbackPage() {
                 const user = {
                     email: payload.sub,
                     nickname: payload.nickname || payload.sub.split('@')[0],
-                    role: payload.role || 'USER'
+                    role: payload.auth?.replace('ROLE_', '') || 'USER'
                 };
 
                 loginUser(user, accessToken, refreshToken);

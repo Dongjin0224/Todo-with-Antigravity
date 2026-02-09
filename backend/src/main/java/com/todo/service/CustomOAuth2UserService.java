@@ -35,6 +35,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         String providerId;
         String email;
         String nickname;
+        boolean isEmailVerified = false;
 
         Map<String, Object> attributes = oAuth2User.getAttributes();
 
@@ -42,17 +43,30 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             providerId = (String) attributes.get("sub");
             email = (String) attributes.get("email");
             nickname = (String) attributes.get("name");
+            // Google의 이메일 검증 여부 확인
+            Object emailVerified = attributes.get("email_verified");
+            isEmailVerified = Boolean.TRUE.equals(emailVerified);
         } else if (provider == Provider.KAKAO) {
             providerId = String.valueOf(attributes.get("id"));
+            @SuppressWarnings("unchecked")
             Map<String, Object> kakaoAccount = (Map<String, Object>) attributes.get("kakao_account");
+            @SuppressWarnings("unchecked")
             Map<String, Object> profile = (Map<String, Object>) kakaoAccount.get("profile");
             email = (String) kakaoAccount.get("email");
             nickname = (String) profile.get("nickname");
+            // Kakao의 이메일 검증 여부 확인
+            Object emailVerifiedObj = kakaoAccount.get("is_email_verified");
+            isEmailVerified = Boolean.TRUE.equals(emailVerifiedObj);
         } else {
             throw new OAuth2AuthenticationException("Unsupported provider: " + registrationId);
         }
 
-        log.info("OAuth2 로그인 시도: provider={}, email={}, nickname={}", provider, email, nickname);
+        // 이메일 검증 여부 로깅
+        if (!isEmailVerified) {
+            log.warn("OAuth 이메일이 미검증 상태입니다: provider={}, email={}", provider, maskEmail(email));
+        }
+
+        log.info("OAuth2 로그인 시도: provider={}, email={}", provider, maskEmail(email));
 
         // 기존 회원 조회 (이메일 기준)
         Optional<Member> existingMember = memberRepository.findByEmail(email);
@@ -64,17 +78,16 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             // 기존 계정이 LOCAL인 경우 OAuth 연동
             if (member.getProvider() == Provider.LOCAL) {
                 member.linkOAuthAccount(provider, providerId);
-                log.info("기존 LOCAL 계정과 OAuth 연동: email={}, provider={}", email, provider);
+                log.info("기존 LOCAL 계정과 OAuth 연동: email={}, provider={}", maskEmail(email), provider);
             }
             // 같은 OAuth provider로 로그인하는 경우 - 정상 로그인
             else if (member.getProvider() == provider) {
-                log.info("기존 OAuth 계정으로 로그인: email={}, provider={}", email, provider);
+                log.debug("기존 OAuth 계정으로 로그인: email={}, provider={}", maskEmail(email), provider);
             }
-            // 다른 OAuth provider로 로그인 시도하는 경우 - 기존 계정에 추가 연동
+            // 다른 OAuth provider로 로그인 시도하는 경우 - 기존 계정 사용
             else {
                 log.info("다른 OAuth provider로 로그인 시도 - 기존 계정 사용: email={}, 기존provider={}, 시도provider={}",
-                        email, member.getProvider(), provider);
-                // 기존 계정 유지 (필요시 추가 provider 연동 로직 구현 가능)
+                        maskEmail(email), member.getProvider(), provider);
             }
         } else {
             // 신규 회원 생성
@@ -86,7 +99,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                     .providerId(providerId)
                     .build();
             memberRepository.save(member);
-            log.info("OAuth 신규 회원 생성: email={}", email);
+            log.info("OAuth 신규 회원 생성: email={}", maskEmail(email));
         }
 
         return new DefaultOAuth2User(
@@ -95,5 +108,19 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 attributes,
                 userRequest.getClientRegistration().getProviderDetails().getUserInfoEndpoint()
                         .getUserNameAttributeName());
+    }
+
+    /**
+     * 이메일 마스킹 (예: test@example.com → t***@example.com)
+     */
+    private String maskEmail(String email) {
+        if (email == null || !email.contains("@")) {
+            return "***";
+        }
+        int atIndex = email.indexOf("@");
+        if (atIndex <= 1) {
+            return "***" + email.substring(atIndex);
+        }
+        return email.charAt(0) + "***" + email.substring(atIndex);
     }
 }

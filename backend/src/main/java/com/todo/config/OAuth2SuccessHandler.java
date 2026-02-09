@@ -34,50 +34,85 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
             Authentication authentication) throws IOException, ServletException {
+
+        OAuth2User oAuth2User;
         try {
-            OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
-
-            // 이메일 추출 (Google vs Kakao)
-            String email = extractEmail(oAuth2User);
-            if (email == null || email.isBlank()) {
-                redirectWithError(request, response, "이메일 정보를 가져올 수 없습니다.");
-                return;
-            }
-
-            log.info("OAuth2 로그인 성공: email={}", email);
-
-            // 회원 조회
-            Optional<Member> memberOptional = memberRepository.findByEmail(email);
-            if (memberOptional.isEmpty()) {
-                redirectWithError(request, response, "회원 정보를 찾을 수 없습니다.");
-                return;
-            }
-            Member member = memberOptional.get();
-
-            // JWT 토큰 생성 (nickname 포함)
-            String accessToken = jwtTokenProvider.generateAccessToken(authentication, member.getNickname());
-            String refreshToken = jwtTokenProvider.generateRefreshToken();
-
-            // RefreshToken 저장 (기존 토큰이 있으면 갱신)
-            saveOrUpdateRefreshToken(member.getId().toString(), refreshToken);
-
-            // 프론트엔드로 리다이렉트 (토큰 포함)
-            String targetUrl = UriComponentsBuilder.fromUriString(appProperties.getAuthorizedRedirectUri())
-                    .queryParam("accessToken", accessToken)
-                    .queryParam("refreshToken", refreshToken)
-                    .build().toUriString();
-
-            getRedirectStrategy().sendRedirect(request, response, targetUrl);
-        } catch (Exception e) {
-            log.error("OAuth2 로그인 처리 중 오류 발생", e);
-            redirectWithError(request, response, "로그인 처리 중 오류가 발생했습니다.");
+            oAuth2User = (OAuth2User) authentication.getPrincipal();
+        } catch (ClassCastException e) {
+            log.error("OAuth2User 캐스팅 실패", e);
+            redirectWithError(request, response, "인증 정보 처리 중 오류가 발생했습니다.");
+            return;
         }
+
+        // 이메일 추출 (Google vs Kakao)
+        String email;
+        try {
+            email = extractEmail(oAuth2User);
+        } catch (Exception e) {
+            log.error("이메일 추출 중 오류 발생", e);
+            redirectWithError(request, response, "이메일 정보를 가져올 수 없습니다.");
+            return;
+        }
+
+        if (email == null || email.isBlank()) {
+            log.warn("OAuth 응답에 이메일이 없습니다");
+            redirectWithError(request, response, "이메일 정보를 가져올 수 없습니다.");
+            return;
+        }
+
+        log.info("OAuth2 로그인 성공: email={}", maskEmail(email));
+
+        // 회원 조회
+        Optional<Member> memberOptional;
+        try {
+            memberOptional = memberRepository.findByEmail(email);
+        } catch (Exception e) {
+            log.error("회원 조회 중 오류 발생: email={}", maskEmail(email), e);
+            redirectWithError(request, response, "회원 정보 조회 중 오류가 발생했습니다.");
+            return;
+        }
+
+        if (memberOptional.isEmpty()) {
+            log.warn("OAuth 로그인 실패 - 회원 없음: email={}", maskEmail(email));
+            redirectWithError(request, response, "회원 정보를 찾을 수 없습니다.");
+            return;
+        }
+        Member member = memberOptional.get();
+
+        // JWT 토큰 생성 (nickname 포함)
+        String accessToken;
+        String refreshToken;
+        try {
+            accessToken = jwtTokenProvider.generateAccessToken(authentication, member.getNickname());
+            refreshToken = jwtTokenProvider.generateRefreshToken();
+        } catch (Exception e) {
+            log.error("JWT 토큰 생성 중 오류 발생", e);
+            redirectWithError(request, response, "토큰 생성 중 오류가 발생했습니다.");
+            return;
+        }
+
+        // RefreshToken 저장 (덮어쓰기 방식)
+        try {
+            saveRefreshToken(member.getId().toString(), refreshToken);
+        } catch (Exception e) {
+            log.error("RefreshToken 저장 중 오류 발생", e);
+            redirectWithError(request, response, "토큰 저장 중 오류가 발생했습니다.");
+            return;
+        }
+
+        // 프론트엔드로 리다이렉트 (토큰 포함)
+        String targetUrl = UriComponentsBuilder.fromUriString(appProperties.getAuthorizedRedirectUri())
+                .queryParam("accessToken", accessToken)
+                .queryParam("refreshToken", refreshToken)
+                .build().toUriString();
+
+        getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }
 
-    private void saveOrUpdateRefreshToken(String memberId, String refreshToken) {
-        // 기존 토큰 삭제 후 새로 저장 (Redis는 자동으로 덮어쓰기됨)
-        refreshTokenRepository.deleteById(memberId);
-
+    /**
+     * RefreshToken 저장 (Redis는 ID로 덮어쓰기됨)
+     */
+    private void saveRefreshToken(String memberId, String refreshToken) {
         RefreshToken refreshTokenEntity = RefreshToken.builder()
                 .id(memberId)
                 .refreshToken(refreshToken)
@@ -115,5 +150,19 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         log.warn("OAuth 응답에서 이메일을 찾을 수 없습니다: {}", attributes.keySet());
         return null;
+    }
+
+    /**
+     * 이메일 마스킹 (예: test@example.com → t***@example.com)
+     */
+    private String maskEmail(String email) {
+        if (email == null || !email.contains("@")) {
+            return "***";
+        }
+        int atIndex = email.indexOf("@");
+        if (atIndex <= 1) {
+            return "***" + email.substring(atIndex);
+        }
+        return email.charAt(0) + "***" + email.substring(atIndex);
     }
 }

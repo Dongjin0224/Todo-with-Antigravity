@@ -15,6 +15,7 @@ import org.springframework.boot.test.autoconfigure.restdocs.AutoConfigureRestDoc
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import com.todo.config.TestSecurityConfig;
 import org.springframework.http.MediaType;
 import org.springframework.restdocs.payload.JsonFieldType;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -35,7 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(controllers = TodoController.class)
-@Import({ com.todo.config.SecurityConfig.class, RestDocsConfig.class })
+@Import({ com.todo.config.SecurityConfig.class, RestDocsConfig.class, TestSecurityConfig.class })
 @AutoConfigureRestDocs
 class TodoControllerTest {
 

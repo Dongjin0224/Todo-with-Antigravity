@@ -46,6 +46,10 @@ public class JwtTokenProvider {
     }
 
     public String generateAccessToken(Authentication authentication) {
+        return generateAccessToken(authentication, null);
+    }
+
+    public String generateAccessToken(Authentication authentication, String nickname) {
         String authorities = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.joining(","));
@@ -53,12 +57,16 @@ public class JwtTokenProvider {
         long now = (new Date()).getTime();
         Date accessTokenExpiresIn = new Date(now + accessTokenValidity);
 
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .subject(authentication.getName())
                 .claim(AUTHORITIES_KEY, authorities)
-                .expiration(accessTokenExpiresIn)
-                .signWith(key)
-                .compact();
+                .expiration(accessTokenExpiresIn);
+
+        if (nickname != null && !nickname.isBlank()) {
+            builder.claim("nickname", nickname);
+        }
+
+        return builder.signWith(key).compact();
     }
 
     public String generateRefreshToken() {

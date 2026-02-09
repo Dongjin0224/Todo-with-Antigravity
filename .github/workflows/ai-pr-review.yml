@@ -89,14 +89,92 @@ jobs:
 
             if (!response.ok) {
               const errText = await response.text();
+              // Do not fail the whole PR check for quota/billing issues.
+              if (response.status === 429 && errText.includes("insufficient_quota")) {
+                const quotaBody = [
+                  marker,
+                  "## AI PR Review",
+                  "",
+                  "AI review skipped: OpenAI API quota is exceeded (`insufficient_quota`).",
+                  "Check OpenAI billing/quota settings, then push a new commit or re-run this workflow.",
+                  "",
+                  `Model: \`${process.env.OPENAI_MODEL || "gpt-4.1-mini"}\``
+                ].join("\n");
+
+                const comments = await github.paginate(github.rest.issues.listComments, {
+                  owner,
+                  repo,
+                  issue_number: pull_number,
+                  per_page: 100
+                });
+
+                const previous = comments.find((c) => c.body && c.body.includes(marker));
+                if (previous) {
+                  await github.rest.issues.updateComment({
+                    owner,
+                    repo,
+                    comment_id: previous.id,
+                    body: quotaBody
+                  });
+                } else {
+                  await github.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: pull_number,
+                    body: quotaBody
+                  });
+                }
+
+                core.warning(`OpenAI quota exceeded: ${errText}`);
+                return;
+              }
+
               core.setFailed(`OpenAI API error: ${response.status} ${errText}`);
               return;
             }
 
             const result = await response.json();
-            const reviewText = (result.output_text || "").trim();
+
+            const extractReviewText = (payload) => {
+              if (!payload || typeof payload !== "object") return "";
+              if (typeof payload.output_text === "string" && payload.output_text.trim()) {
+                return payload.output_text.trim();
+              }
+
+              const fromOutput = (payload.output || [])
+                .flatMap((item) => item.content || [])
+                .map((part) => {
+                  if (typeof part?.text === "string") return part.text;
+                  if (typeof part?.content === "string") return part.content;
+                  return "";
+                })
+                .filter(Boolean)
+                .join("\n")
+                .trim();
+              if (fromOutput) return fromOutput;
+
+              const fromMessage = (payload.choices || [])
+                .map((choice) => {
+                  const c = choice?.message?.content;
+                  if (typeof c === "string") return c;
+                  if (Array.isArray(c)) {
+                    return c
+                      .map((p) => (typeof p?.text === "string" ? p.text : ""))
+                      .filter(Boolean)
+                      .join("\n");
+                  }
+                  return "";
+                })
+                .filter(Boolean)
+                .join("\n")
+                .trim();
+              return fromMessage;
+            };
+
+            const reviewText = extractReviewText(result);
 
             if (!reviewText) {
+              core.warning(`Empty review payload: ${JSON.stringify(result).slice(0, 1000)}`);
               core.setFailed("OpenAI returned an empty review.");
               return;
             }

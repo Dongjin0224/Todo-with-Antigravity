@@ -7,6 +7,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.todo.config.RestDocsConfig;
 import com.todo.dto.TodoRequest;
 import com.todo.dto.TodoResponse;
+import com.todo.exception.ForbiddenException;
+import com.todo.exception.ResourceNotFoundException;
 import com.todo.service.TodoService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,6 +30,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.get;
 import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.post;
+import static org.springframework.restdocs.mockmvc.RestDocumentationRequestBuilders.put;
 import static org.springframework.restdocs.payload.PayloadDocumentation.*;
 import static org.springframework.restdocs.request.RequestDocumentation.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -48,6 +51,12 @@ class TodoControllerTest {
 
         @MockBean
         private com.todo.config.JwtTokenProvider jwtTokenProvider;
+
+        @MockBean
+        private com.todo.exception.CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
+
+        @MockBean
+        private com.todo.exception.CustomAccessDeniedHandler customAccessDeniedHandler;
 
         @Autowired
         private ObjectMapper objectMapper;
@@ -191,5 +200,47 @@ class TodoControllerTest {
                                                                                                 JsonFieldType.NUMBER)
                                                                                                 .description("완료된 할 일 수"))
                                                                 .build())));
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 Todo 조회 시 404를 반환한다")
+        @WithMockUser
+        void getById_NotFound_ShouldReturn404() throws Exception {
+                given(todoService.findById(999L))
+                                .willThrow(new ResourceNotFoundException("Todo not found: 999"));
+
+                mockMvc.perform(get("/api/todos/999"))
+                                .andExpect(status().isNotFound())
+                                .andExpect(jsonPath("$.status").value(404))
+                                .andExpect(jsonPath("$.message").value("Todo not found: 999"));
+        }
+
+        @Test
+        @DisplayName("권한 없는 Todo 조회 시 403을 반환한다")
+        @WithMockUser
+        void getById_Forbidden_ShouldReturn403() throws Exception {
+                given(todoService.findById(10L))
+                                .willThrow(new ForbiddenException("해당 Todo에 대한 권한이 없습니다."));
+
+                mockMvc.perform(get("/api/todos/10"))
+                                .andExpect(status().isForbidden())
+                                .andExpect(jsonPath("$.status").value(403))
+                                .andExpect(jsonPath("$.message").value("해당 Todo에 대한 권한이 없습니다."));
+        }
+
+        @Test
+        @DisplayName("존재하지 않는 Todo 수정 시 404를 반환한다")
+        @WithMockUser
+        void update_NotFound_ShouldReturn404() throws Exception {
+                TodoRequest request = new TodoRequest("Updated Todo", false, 0);
+                given(todoService.update(org.mockito.ArgumentMatchers.eq(404L), any(TodoRequest.class)))
+                                .willThrow(new ResourceNotFoundException("Todo not found: 404"));
+
+                mockMvc.perform(put("/api/todos/404")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request))
+                                .with(csrf()))
+                                .andExpect(status().isNotFound())
+                                .andExpect(jsonPath("$.status").value(404));
         }
 }

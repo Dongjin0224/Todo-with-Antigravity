@@ -5,6 +5,9 @@ import com.todo.dto.AuthRequest;
 import com.todo.dto.AuthResponse;
 import com.todo.entity.Member;
 import com.todo.entity.RefreshToken;
+import com.todo.exception.DuplicateResourceException;
+import com.todo.exception.ResourceNotFoundException;
+import com.todo.exception.UnauthorizedException;
 import com.todo.repository.MemberRepository;
 import com.todo.repository.RefreshTokenRepository;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +31,7 @@ public class AuthService {
         @Transactional
         public void signup(AuthRequest authRequest) {
                 if (memberRepository.existsByEmail(authRequest.getEmail())) {
-                        throw new RuntimeException("이미 가입되어 있는 유저입니다");
+                        throw new DuplicateResourceException("이미 가입되어 있는 유저입니다.");
                 }
 
                 Member member = Member.builder()
@@ -57,7 +60,7 @@ public class AuthService {
 
                 // 4. RefreshToken Redis 저장
                 Member member = memberRepository.findByEmail(authRequest.getEmail())
-                                .orElseThrow(() -> new RuntimeException("유저 정보가 없습니다."));
+                                .orElseThrow(() -> new ResourceNotFoundException("유저 정보가 없습니다."));
 
                 RefreshToken refreshTokenEntity = RefreshToken.builder()
                                 .id(member.getId().toString())
@@ -81,11 +84,11 @@ public class AuthService {
         public AuthResponse reissue(String refreshToken) {
                 // 1. Refresh Token 검증
                 RefreshToken savedToken = refreshTokenRepository.findByRefreshToken(refreshToken)
-                                .orElseThrow(() -> new RuntimeException("유효하지 않은 Refresh Token입니다."));
+                                .orElseThrow(() -> new UnauthorizedException("유효하지 않은 Refresh Token입니다."));
 
                 // 2. Member 조회
                 Member member = memberRepository.findById(Long.parseLong(savedToken.getId()))
-                                .orElseThrow(() -> new RuntimeException("유저 정보가 없습니다."));
+                                .orElseThrow(() -> new ResourceNotFoundException("유저 정보가 없습니다."));
 
                 // 3. 새로운 토큰 발급
                 Authentication authentication = new UsernamePasswordAuthenticationToken(
@@ -113,7 +116,7 @@ public class AuthService {
         @Transactional
         public void logout(String email) {
                 Member member = memberRepository.findByEmail(email)
-                                .orElseThrow(() -> new RuntimeException("유저 정보가 없습니다."));
+                                .orElseThrow(() -> new ResourceNotFoundException("유저 정보가 없습니다."));
                 refreshTokenRepository.deleteById(member.getId().toString());
         }
 }

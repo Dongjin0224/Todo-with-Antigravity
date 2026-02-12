@@ -115,6 +115,7 @@ public class AuthService {
 
         @Transactional
         public void logout(String email) {
+                // 로그아웃 로직: DB에서 Refresh Token 삭제
                 Member member = memberRepository.findByEmail(email)
                                 .orElseThrow(() -> new ResourceNotFoundException("유저 정보가 없습니다."));
                 refreshTokenRepository.deleteById(member.getId().toString());

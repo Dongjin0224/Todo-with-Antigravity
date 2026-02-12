@@ -50,15 +50,26 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             providerId = String.valueOf(attributes.get("id"));
             @SuppressWarnings("unchecked")
             Map<String, Object> kakaoAccount = (Map<String, Object>) attributes.get("kakao_account");
+            if (kakaoAccount == null) {
+                throw new OAuth2AuthenticationException("Kakao account 정보가 없습니다.");
+            }
+
             @SuppressWarnings("unchecked")
             Map<String, Object> profile = (Map<String, Object>) kakaoAccount.get("profile");
             email = (String) kakaoAccount.get("email");
-            nickname = (String) profile.get("nickname");
+            nickname = profile != null && profile.get("nickname") != null
+                    ? String.valueOf(profile.get("nickname"))
+                    : "kakao_user";
+
             // Kakao의 이메일 검증 여부 확인
             Object emailVerifiedObj = kakaoAccount.get("is_email_verified");
             isEmailVerified = Boolean.TRUE.equals(emailVerifiedObj);
         } else {
             throw new OAuth2AuthenticationException("Unsupported provider: " + registrationId);
+        }
+
+        if (email == null || email.isBlank()) {
+            throw new OAuth2AuthenticationException("OAuth provider가 이메일 정보를 제공하지 않았습니다.");
         }
 
         // 이메일 검증 여부 로깅
@@ -77,6 +88,9 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
             // 기존 계정이 LOCAL인 경우 OAuth 연동
             if (member.getProvider() == Provider.LOCAL) {
+                if (!isEmailVerified) {
+                    throw new OAuth2AuthenticationException("이메일 검증이 완료된 계정만 OAuth 연동할 수 있습니다.");
+                }
                 member.linkOAuthAccount(provider, providerId);
                 log.info("기존 LOCAL 계정과 OAuth 연동: email={}, provider={}", maskEmail(email), provider);
             }

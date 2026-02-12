@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { AxiosError } from 'axios';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { signup } from '@/lib/api';
@@ -21,8 +22,9 @@ export default function SignupPage() {
         try {
             await signup({ email, password, nickname });
             router.push('/auth/login');
-        } catch (err: any) {
-            setError(err.response?.data?.message || 'Failed to sign up');
+        } catch (err) {
+            const axiosError = err as AxiosError<{ message?: string }>;
+            setError(axiosError.response?.data?.message || 'Failed to sign up');
         } finally {
             setLoading(false);
         }

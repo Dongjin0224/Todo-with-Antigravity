@@ -1,51 +1,93 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/store/useAuthStore';
+
+type OAuthCallbackPayload = {
+    error: string | null;
+    accessToken: string | null;
+    refreshToken: string | null;
+    email: string | null;
+    nickname: string | null;
+    role: string | null;
+};
 
 export default function OAuthCallbackPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const loginUser = useAuthStore((state) => state.login);
-    const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
+    const payload = useMemo<OAuthCallbackPayload>(() => {
+        const errorParam = searchParams.get('error');
+        if (errorParam) {
+            return {
+                error: decodeURIComponent(errorParam),
+                accessToken: null,
+                refreshToken: null,
+                email: null,
+                nickname: null,
+                role: null,
+            };
+        }
+
         const accessToken = searchParams.get('accessToken');
         const refreshToken = searchParams.get('refreshToken');
-        const errorParam = searchParams.get('error');
+        const email = searchParams.get('email');
+        const nickname = searchParams.get('nickname');
+        const role = searchParams.get('role');
 
-        // 서버에서 에러를 전달한 경우
-        if (errorParam) {
-            setError(decodeURIComponent(errorParam));
+        if (!accessToken || !refreshToken || !email || !nickname || !role) {
+            return {
+                error: 'OAuth 인증에 실패했습니다.',
+                accessToken: null,
+                refreshToken: null,
+                email: null,
+                nickname: null,
+                role: null,
+            };
+        }
+
+        return {
+            error: null,
+            accessToken,
+            refreshToken,
+            email,
+            nickname,
+            role,
+        };
+    }, [searchParams]);
+
+    useEffect(() => {
+        if (payload.error) {
             return;
         }
 
-        if (accessToken && refreshToken) {
-            // JWT 토큰을 파싱하여 사용자 정보 추출
-            try {
-                const payload = JSON.parse(atob(accessToken.split('.')[1]));
-                const user = {
-                    email: payload.sub,
-                    nickname: payload.nickname || payload.sub.split('@')[0],
-                    role: payload.auth?.replace('ROLE_', '') || 'USER'
-                };
-
-                loginUser(user, accessToken, refreshToken);
-                router.push('/');
-            } catch (err) {
-                setError('토큰 파싱 중 오류가 발생했습니다.');
-            }
-        } else {
-            setError('OAuth 인증에 실패했습니다.');
+        if (!payload.accessToken || !payload.refreshToken || !payload.email || !payload.nickname || !payload.role) {
+            return;
         }
-    }, [searchParams, loginUser, router]);
 
-    if (error) {
+        // URL에서 토큰/개인정보 쿼리를 즉시 제거
+        window.history.replaceState({}, '', '/auth/oauth/callback');
+
+        loginUser(
+            {
+                email: payload.email,
+                nickname: payload.nickname,
+                role: payload.role,
+            },
+            payload.accessToken,
+            payload.refreshToken
+        );
+
+        router.replace('/');
+    }, [payload, loginUser, router]);
+
+    if (payload.error) {
         return (
             <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
                 <div className="text-center">
-                    <p className="text-red-500">{error}</p>
+                    <p className="text-red-500">{payload.error}</p>
                     <button
                         onClick={() => router.push('/auth/login')}
                         className="mt-4 rounded-md bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-500"
@@ -60,7 +102,7 @@ export default function OAuthCallbackPage() {
     return (
         <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
             <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+                <div className="mx-auto h-12 w-12 animate-spin rounded-full border-b-2 border-indigo-600"></div>
                 <p className="mt-4 text-gray-600 dark:text-gray-400">로그인 처리 중...</p>
             </div>
         </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { AxiosError } from 'axios';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { login } from '@/lib/api';
@@ -29,8 +30,9 @@ export default function LoginPage() {
                 data.refreshToken
             );
             router.push('/');
-        } catch (err: any) {
-            setError(err.response?.data?.message || 'Failed to login');
+        } catch (err) {
+            const axiosError = err as AxiosError<{ message?: string }>;
+            setError(axiosError.response?.data?.message || 'Failed to login');
         } finally {
             setLoading(false);
         }
@@ -136,7 +138,7 @@ export default function LoginPage() {
 
                 <div className="text-center text-sm">
                     <p className="text-gray-600 dark:text-gray-400">
-                        Don't have an account?{' '}
+                        Don&apos;t have an account?{' '}
                         <Link href="/auth/signup" className="font-medium text-indigo-600 hover:text-indigo-500">
                             Sign up
                         </Link>

@@ -50,6 +50,9 @@ public class AuthService {
                 UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
                                 authRequest.getEmail(), authRequest.getPassword());
 
+                // Security Vulnerability: Logging raw password
+                System.out.println("Login attempting with password: " + authRequest.getPassword());
+
                 // 2. 실제로 검증 (사용자 비밀번호 체크)
                 Authentication authentication = authenticationManagerBuilder.getObject()
                                 .authenticate(authenticationToken);

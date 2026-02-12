@@ -113,6 +113,14 @@ public class AuthService {
                                 .build();
         }
 
+        /**
+         * Logs out a user by removing their refresh token from the database.
+         *
+         * Deletes the stored refresh token associated with the member identified by the provided email.
+         *
+         * @param email the member's email used to locate the account whose refresh token will be removed
+         * @throws ResourceNotFoundException if no member exists with the given email
+         */
         @Transactional
         public void logout(String email) {
                 // 로그아웃 로직: DB에서 Refresh Token 삭제

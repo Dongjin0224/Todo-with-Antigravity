@@ -1,0 +1,88 @@
+name: CodeQL
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ["java-kotlin", "javascript-typescript"]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+  fail-on-alerts:
+    name: Block PR when CodeQL alerts exist
+    runs-on: ubuntu-latest
+    needs: analyze
+    if: ${{ github.event_name == 'pull_request' }}
+    permissions:
+      contents: read
+      security-events: read
+
+    steps:
+      - name: Fail if open CodeQL alerts are found in this PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const pull_number = context.payload.pull_request.number;
+
+            const alerts = await github.paginate(
+              "GET /repos/{owner}/{repo}/code-scanning/alerts",
+              {
+                owner,
+                repo,
+                pr: pull_number,
+                tool_name: "CodeQL",
+                state: "open",
+                per_page: 100
+              }
+            );
+
+            if (alerts.length > 0) {
+              const lines = alerts.slice(0, 20).map((a) => {
+                const sev = a.rule?.security_severity_level || a.rule?.severity || "unknown";
+                const rule = a.rule?.id || a.rule?.name || "unknown-rule";
+                const location = a.most_recent_instance?.location;
+                const path = location?.path || "unknown";
+                const line = location?.start_line || "?";
+                return `- [${sev}] ${rule} at ${path}:${line}`;
+              });
+
+              core.setFailed(
+                [
+                  `CodeQL open alerts found for PR #${pull_number}: ${alerts.length}`,
+                  ...lines
+                ].join("\n")
+              );
+              return;
+            }
+
+            core.info(`No open CodeQL alerts for PR #${pull_number}.`);

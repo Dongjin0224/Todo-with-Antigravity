@@ -8,9 +8,25 @@ type OAuthCallbackPayload = {
     error: string | null;
     accessToken: string | null;
     refreshToken: string | null;
-    email: string | null;
-    nickname: string | null;
-    role: string | null;
+};
+
+type JwtClaims = {
+    sub?: string;
+    nickname?: string;
+    auth?: string;
+};
+
+const decodeJwtPayload = (token: string): JwtClaims | null => {
+    try {
+        const parts = token.split('.');
+        if (parts.length < 2) return null;
+
+        const normalized = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+        return JSON.parse(atob(padded)) as JwtClaims;
+    } catch {
+        return null;
+    }
 };
 
 export default function OAuthCallbackPage() {
@@ -25,26 +41,17 @@ export default function OAuthCallbackPage() {
                 error: decodeURIComponent(errorParam),
                 accessToken: null,
                 refreshToken: null,
-                email: null,
-                nickname: null,
-                role: null,
             };
         }
 
         const accessToken = searchParams.get('accessToken');
         const refreshToken = searchParams.get('refreshToken');
-        const email = searchParams.get('email');
-        const nickname = searchParams.get('nickname');
-        const role = searchParams.get('role');
 
-        if (!accessToken || !refreshToken || !email || !nickname || !role) {
+        if (!accessToken || !refreshToken) {
             return {
                 error: 'OAuth 인증에 실패했습니다.',
                 accessToken: null,
                 refreshToken: null,
-                email: null,
-                nickname: null,
-                role: null,
             };
         }
 
@@ -52,9 +59,6 @@ export default function OAuthCallbackPage() {
             error: null,
             accessToken,
             refreshToken,
-            email,
-            nickname,
-            role,
         };
     }, [searchParams]);
 
@@ -63,7 +67,17 @@ export default function OAuthCallbackPage() {
             return;
         }
 
-        if (!payload.accessToken || !payload.refreshToken || !payload.email || !payload.nickname || !payload.role) {
+        if (!payload.accessToken || !payload.refreshToken) {
+            return;
+        }
+
+        const claims = decodeJwtPayload(payload.accessToken);
+        const email = claims?.sub;
+        const nickname = claims?.nickname || (email ? email.split('@')[0] : null);
+        const role = claims?.auth?.replace('ROLE_', '') || 'USER';
+
+        if (!email || !nickname) {
+            router.replace('/auth/login');
             return;
         }
 
@@ -72,9 +86,9 @@ export default function OAuthCallbackPage() {
 
         loginUser(
             {
-                email: payload.email,
-                nickname: payload.nickname,
-                role: payload.role,
+                email,
+                nickname,
+                role,
             },
             payload.accessToken,
             payload.refreshToken

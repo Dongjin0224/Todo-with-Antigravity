@@ -2,6 +2,7 @@ package com.todo;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 
 /**
  * Spring Boot 메인 애플리케이션 클래스
@@ -12,6 +13,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * - @ComponentScan: 현재 패키지 하위의 모든 컴포넌트 자동 스캔
  */
 @SpringBootApplication
+@ConfigurationPropertiesScan
 public class TodoApplication {
 
     public static void main(String[] args) {

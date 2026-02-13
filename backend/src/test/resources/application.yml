@@ -51,6 +51,22 @@ spring:
 server:
   port: 8080
 
+# CORS 설정 (테스트 기본값)
+cors:
+  allowed-origins:
+    - http://localhost:3000
+  allowed-methods:
+    - GET
+    - POST
+    - PUT
+    - PATCH
+    - DELETE
+    - OPTIONS
+  allowed-headers:
+    - "*"
+  allow-credentials: false
+  max-age: 3600
+
 # JWT 설정
 jwt:
   secret: VG9kb0FwcFNlY3JldEtleU11c3RCZUxvbmdFbm91Z2hGb3JIUzUxMkFsZ29yaXRobU9yYXRMZWFzdDI1NkJpdHM=

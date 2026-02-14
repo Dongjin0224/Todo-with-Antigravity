@@ -25,7 +25,19 @@ server:
 
 # CORS 설정 (프론트엔드 연동용)
 cors:
-  allowed-origins: "*"
+  allowed-origins:
+    - http://localhost:3000
+  allowed-methods:
+    - GET
+    - POST
+    - PUT
+    - PATCH
+    - DELETE
+    - OPTIONS
+  allowed-headers:
+    - "*"
+  allow-credentials: false
+  max-age: 3600
 
 # JWT 설정
 jwt:

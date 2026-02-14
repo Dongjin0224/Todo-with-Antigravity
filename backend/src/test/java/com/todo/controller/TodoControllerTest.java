@@ -5,11 +5,13 @@ import com.epages.restdocs.apispec.ResourceDocumentation;
 import com.epages.restdocs.apispec.ResourceSnippetParameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.todo.config.RestDocsConfig;
+import com.todo.config.CorsProperties;
 import com.todo.dto.TodoRequest;
 import com.todo.dto.TodoResponse;
 import com.todo.exception.ForbiddenException;
 import com.todo.exception.ResourceNotFoundException;
 import com.todo.service.TodoService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,8 +60,21 @@ class TodoControllerTest {
         @MockBean
         private com.todo.exception.CustomAccessDeniedHandler customAccessDeniedHandler;
 
+        @MockBean
+        private CorsProperties corsProperties;
+
         @Autowired
         private ObjectMapper objectMapper;
+
+        @BeforeEach
+        void setUpCorsProperties() {
+                given(corsProperties.getAllowedOrigins()).willReturn(List.of("http://localhost:3000"));
+                given(corsProperties.getAllowedMethods())
+                                .willReturn(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+                given(corsProperties.getAllowedHeaders()).willReturn(List.of("*"));
+                given(corsProperties.isAllowCredentials()).willReturn(false);
+                given(corsProperties.getMaxAge()).willReturn(3600L);
+        }
 
         @Test
         @DisplayName("할 일 목록을 조회한다")

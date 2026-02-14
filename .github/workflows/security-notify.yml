@@ -1,0 +1,133 @@
+name: "Security Notify"
+
+on:
+  workflow_run:
+    workflows: ["CodeQL Advanced"]
+    types: [completed]
+
+jobs:
+  notify-on-findings:
+    name: Notify Security Findings
+    if: >
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: read
+      issues: write
+    steps:
+      - name: Collect CodeQL findings for analyzed commit
+        id: findings
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const sha = context.payload.workflow_run.head_sha;
+            const ref = `refs/heads/${context.payload.workflow_run.head_branch}`;
+            const runId = context.payload.workflow_run.id;
+            const runUrl = context.payload.workflow_run.html_url;
+
+            const alerts = await github.paginate(
+              github.rest.codeScanning.listAlertsForRepo,
+              {
+                owner,
+                repo,
+                ref,
+                state: 'open',
+                tool_name: 'CodeQL',
+                per_page: 100
+              }
+            );
+
+            const commitAlerts = alerts.filter((alert) =>
+              alert?.most_recent_instance?.commit_sha === sha
+            );
+
+            core.info(`CodeQL findings for ${sha}: ${commitAlerts.length}`);
+            core.setOutput('count', String(commitAlerts.length));
+            core.setOutput('alerts', JSON.stringify(commitAlerts));
+            core.setOutput('sha', sha);
+            core.setOutput('run_id', String(runId));
+            core.setOutput('run_url', runUrl || `https://github.com/${owner}/${repo}/actions/runs/${runId}`);
+
+      - name: Create GitHub issue for findings
+        if: steps.findings.outputs.count != '0'
+        uses: actions/github-script@v7
+        env:
+          ALERTS_JSON: ${{ steps.findings.outputs.alerts }}
+          ANALYZED_SHA: ${{ steps.findings.outputs.sha }}
+          ANALYZE_RUN_URL: ${{ steps.findings.outputs.run_url }}
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const sha = process.env.ANALYZED_SHA;
+            const shortSha = sha.substring(0, 7);
+            const runUrl = process.env.ANALYZE_RUN_URL;
+            const title = `[Security] CodeQL findings on main (${shortSha})`;
+            const marker = `<!-- codeql-main-sha:${sha} -->`;
+            const alerts = JSON.parse(process.env.ALERTS_JSON || '[]');
+
+            const existing = await github.paginate(
+              github.rest.issues.listForRepo,
+              { owner, repo, state: 'open', labels: 'security,codeql', per_page: 100 }
+            );
+            const duplicate = existing.find((issue) => issue.body && issue.body.includes(marker));
+            if (duplicate) {
+              core.info(`Issue already exists: #${duplicate.number}`);
+              return;
+            }
+
+            const rows = alerts.slice(0, 20).map((a, idx) => {
+              const severity = a.rule?.security_severity_level || a.rule?.severity || 'unknown';
+              const rule = a.rule?.id || a.rule?.name || 'unknown-rule';
+              const path = a.most_recent_instance?.location?.path || 'unknown-path';
+              const line = a.most_recent_instance?.location?.start_line || '?';
+              const html = a.html_url || '';
+              return `${idx + 1}. \`${severity}\` \`${rule}\` at \`${path}:${line}\` ([view](${html}))`;
+            }).join('\n');
+
+            const body = [
+              marker,
+              `CodeQL detected **${alerts.length}** open finding(s) tied to commit \`${sha}\` on \`main\`.`,
+              '',
+              `CodeQL run: ${runUrl}`,
+              '',
+              '### Findings (top 20)',
+              rows || '- No details available.',
+              '',
+              '### Action',
+              '- Review alerts, patch code, then close this issue when resolved.'
+            ].join('\n');
+
+            await github.rest.issues.create({
+              owner,
+              repo,
+              title,
+              body,
+              labels: ['security', 'codeql']
+            });
+
+      - name: Send Slack notification
+        if: steps.findings.outputs.count != '0' && secrets.SLACK_WEBHOOK_URL != ''
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          COUNT: ${{ steps.findings.outputs.count }}
+          SHA: ${{ steps.findings.outputs.sha }}
+          RUN_URL: ${{ steps.findings.outputs.run_url }}
+          REPO: ${{ github.repository }}
+        run: |
+          SHORT_SHA="${SHA:0:7}"
+
+          payload=$(cat <<EOF
+          {
+            "text": ":rotating_light: CodeQL detected ${COUNT} finding(s) on ${REPO}@${SHORT_SHA} (main)\nRun: ${RUN_URL}"
+          }
+          EOF
+          )
+
+          curl -X POST -H 'Content-type: application/json' --data "$payload" "$SLACK_WEBHOOK_URL"

@@ -46,10 +46,17 @@ jobs:
             const commitAlerts = alerts.filter((alert) =>
               alert?.most_recent_instance?.commit_sha === sha
             );
+            const summarizedAlerts = commitAlerts.slice(0, 20).map((alert) => ({
+              severity: alert.rule?.security_severity_level || alert.rule?.severity || 'unknown',
+              rule: alert.rule?.id || alert.rule?.name || 'unknown-rule',
+              path: alert.most_recent_instance?.location?.path || 'unknown-path',
+              line: alert.most_recent_instance?.location?.start_line || '?',
+              url: alert.html_url || ''
+            }));
 
             core.info(`CodeQL findings for ${sha}: ${commitAlerts.length}`);
             core.setOutput('count', String(commitAlerts.length));
-            core.setOutput('alerts', JSON.stringify(commitAlerts));
+            core.setOutput('alerts', JSON.stringify(summarizedAlerts));
             core.setOutput('sha', sha);
             core.setOutput('run_id', String(runId));
             core.setOutput('run_url', runUrl || `https://github.com/${owner}/${repo}/actions/runs/${runId}`);
@@ -59,6 +66,7 @@ jobs:
         uses: actions/github-script@v7
         env:
           ALERTS_JSON: ${{ steps.findings.outputs.alerts }}
+          TOTAL_COUNT: ${{ steps.findings.outputs.count }}
           ANALYZED_SHA: ${{ steps.findings.outputs.sha }}
           ANALYZE_RUN_URL: ${{ steps.findings.outputs.run_url }}
         with:
@@ -71,6 +79,7 @@ jobs:
             const title = `[Security] CodeQL findings on main (${shortSha})`;
             const marker = `<!-- codeql-main-sha:${sha} -->`;
             const alerts = JSON.parse(process.env.ALERTS_JSON || '[]');
+            const totalCount = Number(process.env.TOTAL_COUNT || alerts.length);
 
             const existing = await github.paginate(
               github.rest.issues.listForRepo,
@@ -82,18 +91,18 @@ jobs:
               return;
             }
 
-            const rows = alerts.slice(0, 20).map((a, idx) => {
-              const severity = a.rule?.security_severity_level || a.rule?.severity || 'unknown';
-              const rule = a.rule?.id || a.rule?.name || 'unknown-rule';
-              const path = a.most_recent_instance?.location?.path || 'unknown-path';
-              const line = a.most_recent_instance?.location?.start_line || '?';
-              const html = a.html_url || '';
+            const rows = alerts.map((a, idx) => {
+              const severity = a.severity || 'unknown';
+              const rule = a.rule || 'unknown-rule';
+              const path = a.path || 'unknown-path';
+              const line = a.line || '?';
+              const html = a.url || '';
               return `${idx + 1}. \`${severity}\` \`${rule}\` at \`${path}:${line}\` ([view](${html}))`;
             }).join('\n');
 
             const body = [
               marker,
-              `CodeQL detected **${alerts.length}** open finding(s) tied to commit \`${sha}\` on \`main\`.`,
+              `CodeQL detected **${totalCount}** open finding(s) tied to commit \`${sha}\` on \`main\`.`,
               '',
               `CodeQL run: ${runUrl}`,
               '',
@@ -113,7 +122,7 @@ jobs:
             });
 
       - name: Send Slack notification
-        if: steps.findings.outputs.count != '0' && secrets.SLACK_WEBHOOK_URL != ''
+        if: steps.findings.outputs.count != '0' && env.SLACK_WEBHOOK_URL != ''
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           COUNT: ${{ steps.findings.outputs.count }}

@@ -1,0 +1,230 @@
+name: Main Improvement Review
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+    inputs:
+      base_sha:
+        description: "Base commit SHA (optional)"
+        required: false
+        type: string
+      head_sha:
+        description: "Head commit SHA (optional)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  review-main-update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build change context
+        id: context
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            BASE_SHA="${{ github.event.inputs.base_sha }}"
+            HEAD_SHA="${{ github.event.inputs.head_sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+            HEAD_SHA="${{ github.sha }}"
+          fi
+
+          if [[ -z "$HEAD_SHA" ]]; then
+            HEAD_SHA="$(git rev-parse HEAD)"
+          fi
+
+          if [[ -z "$BASE_SHA" || "$BASE_SHA" == "0000000000000000000000000000000000000000" ]]; then
+            BASE_SHA="$(git rev-parse "${HEAD_SHA}^" 2>/dev/null || true)"
+          fi
+
+          if [[ -z "$BASE_SHA" ]]; then
+            echo "No valid base commit. Skip run."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "base_sha=$BASE_SHA" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+
+          git diff --name-only "$BASE_SHA" "$HEAD_SHA" > changed_files.txt
+          git diff --unified=2 --no-color "$BASE_SHA" "$HEAD_SHA" > full_diff.patch
+
+          if [[ ! -s changed_files.txt ]]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          MAX_DIFF_CHARS=120000
+          DIFF_CHARS="$(wc -c < full_diff.patch)"
+          if (( DIFF_CHARS > MAX_DIFF_CHARS )); then
+            head -c "$MAX_DIFF_CHARS" full_diff.patch > review_diff.patch
+            echo "diff_truncated=true" >> "$GITHUB_OUTPUT"
+          else
+            cp full_diff.patch review_diff.patch
+            echo "diff_truncated=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Generate and post improvement report
+        if: steps.context.outputs.skip == 'false'
+        uses: actions/github-script@v7
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || secrets.OPENAI_KEY }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL || 'gpt-4.1-mini' }}
+          BASE_SHA: ${{ steps.context.outputs.base_sha }}
+          HEAD_SHA: ${{ steps.context.outputs.head_sha }}
+          DIFF_TRUNCATED: ${{ steps.context.outputs.diff_truncated }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs");
+
+            const { owner, repo } = context.repo;
+            const baseSha = process.env.BASE_SHA;
+            const headSha = process.env.HEAD_SHA;
+            const diffTruncated = String(process.env.DIFF_TRUNCATED || "false") === "true";
+            const openaiKey = process.env.OPENAI_API_KEY;
+            const openaiModel = process.env.OPENAI_MODEL || "gpt-4.1-mini";
+
+            if (!openaiKey) {
+              core.setFailed("Missing OPENAI_API_KEY secret.");
+              return;
+            }
+
+            const changedFiles = fs.readFileSync("changed_files.txt", "utf8").trim();
+            const diff = fs.readFileSync("review_diff.patch", "utf8").trim();
+
+            if (!changedFiles || !diff) {
+              core.info("No change context to review.");
+              return;
+            }
+
+            const prompt = [
+              "You are a pragmatic senior product+engineering reviewer.",
+              "Your task: review ONLY the changed code and suggest project improvements.",
+              "Focus on:",
+              "1) Features to add",
+              "2) Features/behaviors to simplify or remove",
+              "3) UX/dev-experience/maintainability improvements",
+              "4) Technical debt priorities",
+              "",
+              "Output rules:",
+              "- Write in Korean.",
+              "- Use markdown.",
+              "- Be concrete and actionable.",
+              "- Prioritize impact and effort.",
+              "- Do not repeat raw diff.",
+              "",
+              "Required sections:",
+              "## Summary",
+              "## Add (High Value Features)",
+              "## Remove or Simplify",
+              "## Improve (Architecture/Quality/UX)",
+              "## Next 3 Actions",
+              "",
+              `Changed files:\n${changedFiles}`,
+              "",
+              "Diff:",
+              diff
+            ].join("\n");
+
+            const response = await fetch("https://api.openai.com/v1/responses", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${openaiKey}`
+              },
+              body: JSON.stringify({
+                model: openaiModel,
+                input: prompt
+              })
+            });
+
+            if (!response.ok) {
+              const errText = await response.text();
+              core.setFailed(`OpenAI API error: ${response.status} ${errText}`);
+              return;
+            }
+
+            const payload = await response.json();
+            const report = (payload.output_text || "").trim();
+            if (!report) {
+              core.setFailed("OpenAI returned an empty report.");
+              return;
+            }
+
+            const hubMarker = "<!-- main-improvement-hub -->";
+            const commitMarker = `<!-- main-improvement:${headSha} -->`;
+            const issueTitle = "Main Branch Improvement Review";
+
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              state: "open",
+              per_page: 100
+            });
+
+            let hub = issues.find(
+              (i) => !i.pull_request && i.title === issueTitle && (i.body || "").includes(hubMarker)
+            );
+
+            if (!hub) {
+              const created = await github.rest.issues.create({
+                owner,
+                repo,
+                title: issueTitle,
+                body: [
+                  hubMarker,
+                  "This issue collects automated improvement reports for each `main` update.",
+                  "",
+                  "- Source: `.github/workflows/main-improvement-review.yml`",
+                  "- Scope: feature add/remove/simplify/quality recommendations (not security-only)"
+                ].join("\n")
+              });
+              hub = created.data;
+            }
+
+            const hubComments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number: hub.number,
+              per_page: 100
+            });
+
+            if (hubComments.some((c) => (c.body || "").includes(commitMarker))) {
+              core.info(`Report already exists for ${headSha}.`);
+              return;
+            }
+
+            const runUrl = `https://github.com/${owner}/${repo}/actions/runs/${context.runId}`;
+            const shortHead = headSha.slice(0, 7);
+            const shortBase = baseSha.slice(0, 7);
+
+            const body = [
+              commitMarker,
+              `## Main Update Review (${shortBase} -> ${shortHead})`,
+              "",
+              `- Base: \`${baseSha}\``,
+              `- Head: \`${headSha}\``,
+              `- Diff truncated: \`${diffTruncated}\``,
+              `- Workflow run: ${runUrl}`,
+              "",
+              report
+            ].join("\n");
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: hub.number,
+              body
+            });

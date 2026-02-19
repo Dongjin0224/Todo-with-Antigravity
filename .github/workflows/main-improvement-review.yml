@@ -191,7 +191,12 @@ jobs:
 
             const hubMarker = "<!-- main-improvement-hub -->";
             const commitMarker = `<!-- main-improvement:${headSha} -->`;
-            const issueTitle = "메인 브랜치 개선 리뷰";
+            const issueTitle = "메인 업데이트 개선 제안";
+            const legacyIssueTitles = [
+              "메인 업데이트 개선 제안 허브",
+              "메인 브랜치 개선 리뷰",
+              "Main Branch Improvement Review"
+            ];
 
             const issues = await github.paginate(github.rest.issues.listForRepo, {
               owner,
@@ -201,8 +206,16 @@ jobs:
             });
 
             let hub = issues.find(
-              (i) => !i.pull_request && i.title === issueTitle && (i.body || "").includes(hubMarker)
+              (i) => !i.pull_request && (i.body || "").includes(hubMarker)
             );
+
+            if (!hub) {
+              hub = issues.find(
+                (i) =>
+                  !i.pull_request &&
+                  (i.title === issueTitle || legacyIssueTitles.includes(i.title))
+              );
+            }
 
             if (!hub) {
               const created = await github.rest.issues.create({

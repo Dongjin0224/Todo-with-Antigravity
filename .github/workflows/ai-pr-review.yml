@@ -143,6 +143,8 @@ jobs:
                   Array.isArray(v) ? v.map((x) => String(x || "").trim()).filter(Boolean) : [];
 
                 return {
+                  overview: typeof parsed?.overview === "string" ? parsed.overview.trim() : "",
+                  highlights: toStringArray(parsed?.highlights),
                   findings: normalizedFindings.sort(
                     (a, b) => (severityRank[a.severity] ?? 99) - (severityRank[b.severity] ?? 99)
                   ),
@@ -195,6 +197,8 @@ jobs:
               `반드시 JSON만 반환해라. 마크다운/설명문 금지.`,
               `JSON 스키마:`,
               `{`,
+              `  "overview": "PR 전체 요약 2~3문장",`,
+              `  "highlights": ["핵심 변경사항 1", "핵심 변경사항 2"],`,
               `  "findings": [`,
               `    {`,
               `      "severity": "critical|major|minor",`,
@@ -213,6 +217,8 @@ jobs:
               `- finding은 최대 12개`,
               `- 심각도 순서: critical > major > minor`,
               `- line은 가능하면 diff의 추가 라인(+ side) 번호 사용`,
+              `- 사소한 스타일/취향성 피드백은 제외`,
+              `- 증거가 약하면 finding 대신 openQuestions로 분류`,
               ``,
               `PR title: ${pr.data.title}`,
               `PR body: ${pr.data.body || "(empty)"}`,
@@ -338,6 +344,19 @@ jobs:
                     ].join("\n")
                   );
 
+            const findingsBySeverity = {
+              critical: parsed.findings.filter((f) => f.severity === "critical"),
+              major: parsed.findings.filter((f) => f.severity === "major"),
+              minor: parsed.findings.filter((f) => f.severity === "minor")
+            };
+
+            const summarizeSeverity = (severity) =>
+              findingsBySeverity[severity].length === 0
+                ? ["- 없음"]
+                : findingsBySeverity[severity].map((f) =>
+                    `- ${f.file || "(unknown file)"}${f.line ? `:${f.line}` : ""} - ${f.summary}`
+                  );
+
             const outOfRange = [];
             const inlineComments = [];
 
@@ -385,37 +404,71 @@ jobs:
             const outOfRangeLines =
               outOfRange.length === 0
                 ? []
-                : [
-                    "",
-                    "## Out-of-Diff Findings",
-                    ...outOfRange.map((f) =>
-                      `- [severity: ${f.severity}] ${f.file || "(unknown file)"}${
-                        f.line ? `:${f.line}` : ""
-                      } - ${f.summary}`
-                    )
-                  ];
+                : outOfRange.map((f) =>
+                    `- [severity: ${f.severity}] ${f.file || "(unknown file)"}${
+                      f.line ? `:${f.line}` : ""
+                    } - ${f.summary}`
+                  );
 
             const missingTestsLines =
               parsed.missingTests.length === 0 ? ["- 없음"] : parsed.missingTests.map((t) => `- ${t}`);
             const openQuestionsLines =
               parsed.openQuestions.length === 0 ? ["- 없음"] : parsed.openQuestions.map((q) => `- ${q}`);
+            const highlightsLines =
+              parsed.highlights.length === 0 ? ["- 없음"] : parsed.highlights.map((h) => `- ${h}`);
+            const overviewLine =
+              parsed.overview || "핵심 위험과 회귀 가능성을 우선으로 리뷰했습니다.";
 
             const body = [
               marker,
               "## AI PR Review",
               "",
               `Reviewed commit: \`${reviewedCommit}\``,
-              `Inline comments posted: ${inlinePosted}`,
               "",
-              "## Findings",
+              "### TL;DR",
+              overviewLine,
+              "",
+              "### Risk Snapshot",
+              "|치명|주요|경미|Inline 코멘트|Out-of-diff|",
+              "|---:|---:|---:|---:|---:|",
+              `|${findingsBySeverity.critical.length}|${findingsBySeverity.major.length}|${findingsBySeverity.minor.length}|${inlinePosted}|${outOfRange.length}|`,
+              "",
+              "### Key Changes",
+              ...highlightsLines,
+              "",
+              "### Findings",
+              "#### 치명적 이슈",
+              ...summarizeSeverity("critical"),
+              "",
+              "#### 주요 이슈",
+              ...summarizeSeverity("major"),
+              "",
+              "#### 경미한 이슈",
+              ...summarizeSeverity("minor"),
+              "",
+              "<details>",
+              "<summary>상세 근거/제안 보기</summary>",
+              "",
               ...findingsMarkdown,
+              "",
+              "</details>",
               "",
               "## Missing Tests",
               ...missingTestsLines,
               "",
               "## Open Questions",
               ...openQuestionsLines,
-              ...outOfRangeLines,
+              ...(outOfRange.length === 0
+                ? []
+                : [
+                    "",
+                    "<details>",
+                    "<summary>Out-of-Diff Findings</summary>",
+                    "",
+                    ...outOfRangeLines.filter(Boolean),
+                    "",
+                    "</details>"
+                  ]),
               "",
               `Model: \`${process.env.OPENAI_MODEL || "gpt-4.1-mini"}\``
             ].join("\n");

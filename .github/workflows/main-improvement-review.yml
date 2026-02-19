@@ -81,6 +81,7 @@ jobs:
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || secrets.OPENAI_KEY }}
           OPENAI_MODEL: ${{ vars.OPENAI_MODEL || 'gpt-4.1-mini' }}
+          ALLOW_SEND_DIFF_TO_OPENAI: ${{ vars.ALLOW_SEND_DIFF_TO_OPENAI || 'false' }}
           BASE_SHA: ${{ steps.context.outputs.base_sha }}
           HEAD_SHA: ${{ steps.context.outputs.head_sha }}
           DIFF_TRUNCATED: ${{ steps.context.outputs.diff_truncated }}
@@ -95,6 +96,13 @@ jobs:
             const diffTruncated = String(process.env.DIFF_TRUNCATED || "false") === "true";
             const openaiKey = process.env.OPENAI_API_KEY;
             const openaiModel = process.env.OPENAI_MODEL || "gpt-4.1-mini";
+            const allowSendDiff =
+              String(process.env.ALLOW_SEND_DIFF_TO_OPENAI || "false").toLowerCase() === "true";
+
+            if (!allowSendDiff) {
+              core.info("AI 리포트 생략: 외부 diff 분석을 허용하려면 ALLOW_SEND_DIFF_TO_OPENAI=true 를 설정하세요.");
+              return;
+            }
 
             if (!openaiKey) {
               core.setFailed("Missing OPENAI_API_KEY secret.");
@@ -108,6 +116,19 @@ jobs:
               core.info("No change context to review.");
               return;
             }
+
+            const redactSensitive = (text) => {
+              if (!text) return text;
+              return String(text)
+                .replace(/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g, "[REDACTED_PRIVATE_KEY]")
+                .replace(/(api[_-]?key|secret|token|password|passwd)\s*[:=]\s*["']?([^\s"'`]+)/gi, "$1=[REDACTED]")
+                .replace(/\b(AKIA[0-9A-Z]{16})\b/g, "[REDACTED_AWS_ACCESS_KEY]")
+                .replace(/\b(ghp_[A-Za-z0-9]{20,})\b/g, "[REDACTED_GITHUB_TOKEN]")
+                .replace(/\b(sk-[A-Za-z0-9]{20,})\b/g, "[REDACTED_OPENAI_KEY]");
+            };
+
+            const sanitizedChangedFiles = redactSensitive(changedFiles);
+            const sanitizedDiff = redactSensitive(diff);
 
             const prompt = [
               "You are a pragmatic senior product+engineering reviewer.",
@@ -132,10 +153,10 @@ jobs:
               "## Improve (Architecture/Quality/UX)",
               "## Next 3 Actions",
               "",
-              `Changed files:\n${changedFiles}`,
+              `Changed files:\n${sanitizedChangedFiles}`,
               "",
               "Diff:",
-              diff
+              sanitizedDiff
             ].join("\n");
 
             const response = await fetch("https://api.openai.com/v1/responses", {
@@ -157,7 +178,12 @@ jobs:
             }
 
             const payload = await response.json();
-            const report = (payload.output_text || "").trim();
+            const report = (payload.output || [])
+              .flatMap((item) => (Array.isArray(item?.content) ? item.content : []))
+              .filter((part) => part?.type === "output_text" && typeof part?.text === "string")
+              .map((part) => part.text)
+              .join("\n")
+              .trim();
             if (!report) {
               core.setFailed("OpenAI returned an empty report.");
               return;
@@ -165,7 +191,12 @@ jobs:
 
             const hubMarker = "<!-- main-improvement-hub -->";
             const commitMarker = `<!-- main-improvement:${headSha} -->`;
-            const issueTitle = "Main Branch Improvement Review";
+            const issueTitle = "메인 업데이트 개선 제안";
+            const legacyIssueTitles = [
+              "메인 업데이트 개선 제안 허브",
+              "메인 브랜치 개선 리뷰",
+              "Main Branch Improvement Review"
+            ];
 
             const issues = await github.paginate(github.rest.issues.listForRepo, {
               owner,
@@ -175,8 +206,16 @@ jobs:
             });
 
             let hub = issues.find(
-              (i) => !i.pull_request && i.title === issueTitle && (i.body || "").includes(hubMarker)
+              (i) => !i.pull_request && (i.body || "").includes(hubMarker)
             );
+
+            if (!hub) {
+              hub = issues.find(
+                (i) =>
+                  !i.pull_request &&
+                  (i.title === issueTitle || legacyIssueTitles.includes(i.title))
+              );
+            }
 
             if (!hub) {
               const created = await github.rest.issues.create({
@@ -185,10 +224,10 @@ jobs:
                 title: issueTitle,
                 body: [
                   hubMarker,
-                  "This issue collects automated improvement reports for each `main` update.",
+                  "이 이슈는 `main` 업데이트마다 자동 생성된 개선 리포트를 누적합니다.",
                   "",
-                  "- Source: `.github/workflows/main-improvement-review.yml`",
-                  "- Scope: feature add/remove/simplify/quality recommendations (not security-only)"
+                  "- 소스: `.github/workflows/main-improvement-review.yml`",
+                  "- 범위: 보안 전용이 아닌 기능 추가/제거/단순화/품질 개선 제안"
                 ].join("\n")
               });
               hub = created.data;
@@ -202,7 +241,7 @@ jobs:
             });
 
             if (hubComments.some((c) => (c.body || "").includes(commitMarker))) {
-              core.info(`Report already exists for ${headSha}.`);
+              core.info(`${headSha} 커밋에 대한 리포트가 이미 존재합니다.`);
               return;
             }
 
@@ -212,12 +251,12 @@ jobs:
 
             const body = [
               commitMarker,
-              `## Main Update Review (${shortBase} -> ${shortHead})`,
+              `## 메인 업데이트 리뷰 (${shortBase} -> ${shortHead})`,
               "",
-              `- Base: \`${baseSha}\``,
-              `- Head: \`${headSha}\``,
-              `- Diff truncated: \`${diffTruncated}\``,
-              `- Workflow run: ${runUrl}`,
+              `- 기준 커밋(Base): \`${baseSha}\``,
+              `- 대상 커밋(Head): \`${headSha}\``,
+              `- Diff 잘림 여부: \`${diffTruncated}\``,
+              `- 워크플로우 실행: ${runUrl}`,
               "",
               report
             ].join("\n");
